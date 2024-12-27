@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 import 'generated/pubspec.g.dart' as info;
 import 'package:intl/intl.dart';
-import 'package:pub_semver/pub_semver.dart';
-import 'package:dart_style/dart_style.dart';
 
 Map<String, dynamic> config = {"output": "lib/generated"};
 

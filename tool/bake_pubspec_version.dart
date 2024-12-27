@@ -6,5 +6,5 @@ void main() {
   File("bin/generated/pubspec.g.dart")
     ..createSync(recursive: true)
     ..writeAsStringSync(
-        "// automatically generated file, do not modify!\n// run 'dart tool/bake_pubspec_version.dart' to update\n\nimport 'package:pub_semver/pub_semver.dart';\n\nfinal Version version = Version.parse(\"${loadYaml(File("pubspec.yaml").readAsStringSync())["version"]}\");\n");
+        "// automatically generated file, do not modify!\n// run 'dart tool/bake_pubspec_version.dart' to update\n\nconst String version = \"${loadYaml(File("pubspec.yaml").readAsStringSync())["version"]}\";\n");
 }

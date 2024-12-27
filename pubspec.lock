@@ -86,14 +86,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.6"
-  dart_style:
-    dependency: "direct main"
-    description:
-      name: dart_style
-      sha256: "27eb0ae77836989a3bc541ce55595e8ceee0992807f14511552a898ddd0d88ac"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.1"
   file:
     dependency: transitive
     description:
@@ -247,7 +239,7 @@ packages:
     source: hosted
     version: "1.5.1"
   pub_semver:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: pub_semver
       sha256: "7b3cfbf654f3edd0c6298ecd5be782ce997ddf0e00531b9464b55245185bbbbd"
