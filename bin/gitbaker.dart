@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:yaml/yaml.dart';
 import 'generated/pubspec.g.dart' as info;
 import 'package:intl/intl.dart';
+import 'package:pub_semver/pub_semver.dart';
+import 'package:dart_style/dart_style.dart';
 
 Map<String, dynamic> config = {"output": "lib/generated"};
 
@@ -78,19 +80,19 @@ void main(List<String> arguments) {
   var output = outputFile.openWrite();
 
   output.writeln(
-      "// GitBaker v${info.version} <https://pub.dev/packages/gitbaker>\n");
+      """// GitBaker v${info.version} <https://pub.dev/packages/gitbaker>
+      
+// This is an automatically generated file by GitBaker. Do not modify manually.
+// To regenerate this file, please rerun the command 'dart run gitbaker'
 
-  output.writeln(
-      "// This is an automatically generated file by GitBaker. Do not modify manually.");
-  output.writeln(
-      "// To regenerate this file, please rerun the command 'dart pub run gitbaker'");
+// ignore_for_file: unnecessary_nullable_for_final_variable_declarations""");
 
   output.writeln(
       "\nenum RemoteType { fetch, push }\nclass Remote {\n\tfinal String name;\n\tfinal String url;\n\tfinal RemoteType type;\n\n\tRemote(this.name, this.url, this.type);\n}");
   output.writeln(
       "\nclass Commit {\n\tfinal String hash;\n\tfinal String message;\n\tfinal String author;\n\tfinal DateTime date;\n\n\tfinal String _branch;\n\tBranch get branch => GitBaker.branches.where((e) => e.name == _branch).toList().first;\n\n\tCommit(this.hash, this.message, this.author, this.date, this._branch);\n}");
   output.writeln(
-      "\nclass Branch {\n\tfinal String hash;\n\tfinal String name;\n\tfinal List<Commit> commits;\n\n\tfinal String _latestCommit;\n\tCommit get latestCommit => commits.where((e) => e.hash == _latestCommit).toList().first;\n\n\tBranch(this.hash, this.name, this.commits, this._latestCommit);\n}");
+      "\nclass Branch {\n\tfinal String hash;\n\tfinal String name;\n\tfinal List<Commit> commits;\n\n\tfinal String? _currentCommit;\n\tCommit? get currentCommit => (_currentCommit == null)\n\t\t\t? null\n\t\t\t: commits.where((e) => e.hash == _currentCommit).toList().first;\n\n\tBranch(this.hash, this.name, this.commits, this._currentCommit);\n}");
   output.writeln(
       "\nclass Tag {\n\tfinal String hash;\n\tfinal String name;\n\n\tTag(this.hash, this.name);\n}");
 
@@ -99,12 +101,6 @@ void main(List<String> arguments) {
   var descriptionFile = File("${gitRoot.path}/.git/description");
   output.writeln(
       "\tstatic final String? description = ${descriptionFile.existsSync() ? "\"${descriptionFile.readAsStringSync().trim().replaceAll('"', '\\"')}\"" : "null"};");
-  output.writeln(
-      "\tstatic final String defaultBranch = \"${(Process.runSync("git", [
-        "rev-parse",
-        "--abbrev-ref",
-        "origin/HEAD"
-      ]).stdout.toString().trim().split("/")..removeWhere((e) => e == "origin")).join("/")}\";");
 
   output.writeln("\n\tstatic final List<Remote> remotes = [");
   for (var remote in Process.runSync("git", ["remote", "-v"])
@@ -122,6 +118,19 @@ void main(List<String> arguments) {
         .writeln("\t\tRemote(\"${parts[0]}\", \"${parts[1]}\", ${parts[2]}),");
   }
   output.writeln("\t];");
+
+  output.writeln(
+      "\n\tstatic final Branch defaultBranch = branches.where((e) => e.name == \"${(Process.runSync("git", [
+        "rev-parse",
+        "--abbrev-ref",
+        "origin/HEAD"
+      ]).stdout.toString().trim().split("/")..removeWhere((e) => e == "origin")).join("/")}\").first;");
+  output.writeln(
+      "\tstatic final Branch currentBranch = branches.where((e) => e.name == \"${(Process.runSync("git", [
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD"
+      ]).stdout.toString().trim().split("/")..removeWhere((e) => e == "origin")).join("/")}\").first;");
 
   output.writeln("\n\tstatic final List<Branch> branches = [");
   for (var branch in Process.runSync("git", ["branch", "--list"])
@@ -155,12 +164,14 @@ void main(List<String> arguments) {
       output.writeln(
           "\t\t\tCommit(\"${parts[0]}\", \"${parts[1]}\", \"${parts[2]}\", DateTime.fromMillisecondsSinceEpoch(${date.copyWith(hour: date.hour + int.parse(sign + calc.substring(0, 2)), minute: date.minute + int.parse(sign + calc.substring(2))).millisecondsSinceEpoch}), \"${branchName.replaceAll('"', '\\"')}\"),");
     }
-    output.writeln("\t\t], \"${Process.runSync("git", [
-          "log",
-          "-n",
-          "1",
-          branchName
-        ]).stdout.toString().split("\n").first.split(" ")[1].trim()}\"),");
+    var currentCommit = Process.runSync("git", ["log", "-n", "1", branchName])
+        .stdout
+        .toString()
+        .split("\n")
+        .first
+        .split(" ");
+    output.writeln(
+        "\t\t], ${currentCommit.length == 1 ? "null" : "\"${currentCommit[1].trim()}\""}),");
   }
   output.writeln("\t];");
 
@@ -180,5 +191,5 @@ void main(List<String> arguments) {
   output.writeln("}");
   output.close();
 
-  print("Generated GitBaker file at ${outputFile.path.replaceAll("\\", "/")}.");
+  print("Generated GitBaker file at: ${outputFile.path.replaceAll("\\", "/")}");
 }

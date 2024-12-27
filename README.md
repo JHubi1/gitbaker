@@ -15,7 +15,7 @@ dart pub add dev:gitbaker
 You can then simply run the following command to bake the information from your Git repository into your project:
 
 ```bash
-dart pub run gitbaker
+dart run gitbaker
 ```
 
 GitBaker will then determine the current Git repository to use and bake the information. This should work in most cases, but in some cases might fail. If this happens, make sure the folder you're running the command in is either root of your Git repository or a subdirectory of it.
@@ -25,6 +25,7 @@ The command will create a new file called `gitbaker.g.dart` in the `lib/generate
 ```yaml
 ...
 gitbaker:
-    output: lib/src/generated // Default is lib/generated
+    // Default is lib/generated
+    output: lib/src/generated
 ...
 ```
