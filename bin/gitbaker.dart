@@ -93,9 +93,10 @@ void main(List<String> arguments) {
 // ignore_for_file: unnecessary_nullable_for_final_variable_declarations""");
 
   out("\nenum RemoteType { fetch, push }\nclass Remote {\n\tfinal String name;\n\tfinal String url;\n\tfinal RemoteType type;\n\n\tRemote(this.name, this.url, this.type);\n}");
-  out("\nclass Commit {\n\tfinal String hash;\n\tfinal String message;\n\tfinal String author;\n\tfinal DateTime date;\n\n\tfinal String _branch;\n\tBranch get branch => GitBaker.branches.where((e) => e.name == _branch).toList().first;\n\n\tCommit(this.hash, this.message, this.author, this.date, this._branch);\n}");
-  out("\nclass Branch {\n\tfinal String hash;\n\tfinal String name;\n\tfinal List<Commit> commits;\n\n\tfinal String? _currentCommit;\n\tCommit? get currentCommit => (_currentCommit == null)\n\t\t\t? null\n\t\t\t: commits.where((e) => e.hash == _currentCommit).toList().first;\n\n\tBranch(this.hash, this.name, this.commits, this._currentCommit);\n}");
-  out("\nclass Tag {\n\tfinal String hash;\n\tfinal String name;\n\n\tTag(this.hash, this.name);\n}");
+  out("\nclass User {\n\tfinal String name;\n\tfinal String email;\n\n\tUser(this.name, this.email);\n}");
+  out("\nclass Commit {\n\tfinal String hash;\n\tfinal String message;\n\tfinal DateTime date;\n\n\t/// Whether the commit has been signed.\n\t/// Careful: not whether the signature is valid!\n\tfinal bool signed;\n\n\tfinal String _branch;\n\tBranch get branch => GitBaker.branches.where((e) => e.name == _branch).first;\n\n\tfinal String _author;\n\tUser get author => GitBaker.contributors.where((e) => e.name == _author).first;\n\n\tCommit(this.hash, this.message, this.date, this.signed, this._branch, this._author);\n}");
+  out("\nclass Branch {\n\tfinal String hash;\n\tfinal String name;\n\tfinal List<Commit> commits;\n\n\tbool get isCurrent => this == GitBaker.currentBranch;\n\tbool get isDefault => this == GitBaker.defaultBranch;\n\n\tBranch(this.hash, this.name, this.commits);\n}");
+  out("\nclass Tag {\n\tfinal String hash;\n\tfinal String name;\n\tfinal String description;\n\n\tTag(this.hash, this.name, this.description);\n}");
 
   out("\nclass GitBaker {");
 
@@ -107,9 +108,9 @@ void main(List<String> arguments) {
       "Unnamed repository; edit this file 'description' to name the repository.") {
     description = null;
   }
-  out("\tstatic final String? description = ${description ?? "null"};");
+  out("\tstatic final String? description = ${description == null ? "null" : "\"$description\""};");
 
-  out("\n\tstatic final List<Remote> remotes = [");
+  out("\n\tstatic final Set<Remote> remotes = {");
   for (var remote in run("git", ["remote", "-v"])
       .stdout
       .toString()
@@ -124,7 +125,20 @@ void main(List<String> arguments) {
     output
         .writeln("\t\tRemote(\"${parts[0]}\", \"${parts[1]}\", ${parts[2]}),");
   }
-  out("\t];");
+  out("\t};");
+
+  out("\n\tstatic final Set<User> contributors = {");
+  for (var commit in run("git", ["log", "--pretty=format:%an|%ae", "--all"])
+      .stdout
+      .toString()
+      .split("\n")
+      .where((e) => e.isNotEmpty)
+      .toSet()
+      .toList()) {
+    var parts = commit.split("|").map((e) => e.trim()).toList();
+    out("\t\tUser(\"${parts[0]}\", \"${parts[1]}\"),");
+  }
+  out("\t};");
 
   out("\n\tstatic final Branch defaultBranch = branches.where((e) => e.name == \"${(run("git", [
         "rev-parse",
@@ -137,7 +151,7 @@ void main(List<String> arguments) {
         "HEAD"
       ]).stdout.toString().trim().split("/")..removeWhere((e) => e == "origin")).join("/")}\").first;");
 
-  out("\n\tstatic final List<Branch> branches = [");
+  out("\n\tstatic final Set<Branch> branches = {");
   for (var branch in run("git", ["branch", "--list"])
       .stdout
       .toString()
@@ -166,30 +180,28 @@ void main(List<String> arguments) {
       parts[3] = (parts[3].split(" ")..removeLast()).join(" ");
       var date = DateFormat("E MMM d H:m:s y").parse(parts[3], true);
 
-      out("\t\t\tCommit(\"${parts[0]}\", \"${parts[1]}\", \"${parts[2]}\", DateTime.fromMillisecondsSinceEpoch(${date.copyWith(hour: date.hour + int.parse(sign + calc.substring(0, 2)), minute: date.minute + int.parse(sign + calc.substring(2))).millisecondsSinceEpoch}), \"${branchName.replaceAll('"', '\\"')}\"),");
+      out("\t\t\tCommit(\"${parts[0]}\", \"${parts[1]}\", DateTime.fromMillisecondsSinceEpoch(${date.copyWith(hour: date.hour + int.parse(sign + calc.substring(0, 2)), minute: date.minute + int.parse(sign + calc.substring(2))).millisecondsSinceEpoch}), ${Process.runSync("git", [
+            "verify-commit",
+            parts[0]
+          ]).stderr.toString().trim().isEmpty ? "false" : "true"}, \"${branchName.replaceAll('"', '\\"')}\", \"${parts[2]}\"),");
     }
-    var currentCommit = run("git", ["log", "-n", "1", branchName])
-        .stdout
-        .toString()
-        .split("\n")
-        .first
-        .split(" ");
-    out("\t\t], ${currentCommit.length == 1 ? "null" : "\"${currentCommit[1].trim()}\""}),");
+    out("\t\t]),");
   }
-  out("\t];");
+  out("\t};");
 
-  out("\n\tstatic final List<Tag> tags = [");
-  for (var tag in run("git", ["tag", "-l"])
+  out("\n\tstatic final Set<Tag> tags = {");
+  for (var tag in run("git", ["tag", "-ln9"])
       .stdout
       .toString()
       .split("\n")
       .where((e) => e.isNotEmpty)) {
+    var parts = tag.split(" ")..removeWhere((e) => e.trim().isEmpty);
     out("\t\tTag(\"${run("git", [
           "rev-parse",
-          tag
-        ]).stdout.toString().trim()}\", \"$tag\"),");
+          parts[0]
+        ]).stdout.toString().trim()}\", \"${parts[0]}\", \"${(parts..removeAt(0)).join(" ")}\"),");
   }
-  out("\t];");
+  out("\t};");
 
   out("}");
   output.close();
