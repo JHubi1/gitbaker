@@ -3,6 +3,14 @@ description: An easy and simple to integrate info baker for git repositories int
 version: 0.0.4
 repository: https://github.com/JHubi1/gitbaker
 
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 topics:
   - git
   - gitbaker
