@@ -27,7 +27,7 @@ The command will create a new file called `gitbaker.g.dart` in the `lib/generate
 ```yaml
 ...
 gitbaker:
-    // Default is lib/generated
+    # Default is lib/generated
     output: lib/src/generated
 ...
 ```
