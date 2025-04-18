@@ -1,3 +1,12 @@
+## 0.0.5
+
+- `Remote.url` now is an `Uri` object instead of a string
+- All helper classes now have a private constructor
+- Generated file now declares itself as library
+- Code is formatted before being written to the file
+- Strings are now raw strings making it safer
+- Nicer CLI output
+
 ## 0.0.4
 
 - Everything is now a Set
