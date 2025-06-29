@@ -5,7 +5,7 @@
 - Classes are now marked as `final`
 - Dart SDK version is now 3.7.0 or higher
 - No more dependency on `intl` package
-  - Better development experience when using `gitbaker` with Flutter
+  - Better DX when used with Flutter
 
 ## 0.0.5
 
