@@ -1,3 +1,12 @@
+## 0.0.6
+
+- Better error handling
+- Better encoding handling
+- Classes are now marked as `final`
+- Dart SDK version is now 3.7.0 or higher
+- No more dependency on `intl` package
+  - Better development experience when using `gitbaker` with Flutter
+
 ## 0.0.5
 
 - `Remote.url` now is an `Uri` object instead of a string
