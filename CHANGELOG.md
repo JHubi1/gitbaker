@@ -1,3 +1,10 @@
+## 0.0.7
+
+- Improved escaping of strings in generated code
+- Added support for global `gitbaker` command
+- Commit's `date` property is now correctly set
+- New `remote` getter returns primary remote from `remotes`
+
 ## 0.0.6
 
 - Better error handling

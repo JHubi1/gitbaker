@@ -8,7 +8,7 @@ import 'package:yaml/yaml.dart';
 import 'generated/pubspec.g.dart' as info;
 
 CliSpin? spinner;
-Map<String, dynamic> config = {"output": "lib/generated"};
+Map<String, dynamic> config = {"output": "lib/generated", "branches": []};
 DateTime? start;
 
 class AnsiEscape {
@@ -45,12 +45,7 @@ class RunResult {
 }
 
 String escape(String text) {
-  return text
-      .replaceAll('"', '\\"')
-      .replaceAll("\n", "\\n")
-      .replaceAll("\r", "\\r")
-      .replaceAll("\$", "\\\$")
-      .replaceAll("\t", "\\t");
+  return jsonEncode(text).replaceAll(r"$", r"\$");
 }
 
 Future<RunResult> run(String executable, List<String> arguments) async {
@@ -94,7 +89,7 @@ void main(_) async {
     exit(1);
   }
 
-  var gitRoot = Directory(
+  final gitRoot = Directory(
     (await run("git", [
       "rev-parse",
       "--show-toplevel",
@@ -125,9 +120,38 @@ void main(_) async {
     }
   }
 
-  if (pubspec != null && pubspec.containsKey("gitbaker")) {
+  if (pubspec != null &&
+      pubspec.containsKey("gitbaker") &&
+      pubspec["gitbaker"] is Map) {
     for (var key in config.keys) {
       if (pubspec["gitbaker"].containsKey(key)) {
+        Object? value;
+        final configValue = config[key];
+        if (configValue is String) {
+          value = pubspec["gitbaker"][key].toString();
+        } else if (configValue is int) {
+          final pubspecValue = pubspec["gitbaker"][key];
+          if (pubspecValue is int) {
+            value = pubspecValue;
+          } else if (pubspecValue is String) {
+            value = int.tryParse(pubspecValue);
+          }
+        } else if (configValue is bool) {
+          final pubspecValue = pubspec["gitbaker"][key];
+          if (pubspecValue is bool) {
+            value = pubspecValue;
+          } else if (pubspecValue is String) {
+            value = bool.tryParse(pubspecValue, caseSensitive: false);
+          }
+        } else if (configValue is List) {
+          final pubspecValue = pubspec["gitbaker"][key];
+          if (pubspecValue is YamlList) {
+            value = pubspecValue.toList();
+          } else if (pubspecValue is String) {
+            value = [pubspecValue];
+          }
+        }
+        if (value == null) continue;
         config[key] = pubspec["gitbaker"][key];
       }
     }
@@ -151,9 +175,9 @@ void main(_) async {
     outputDir.createSync(recursive: true);
   }
 
-  var outputFile = File("${outputDir.path}/gitbaker.g.dart");
-  var outputFileExisted = outputFile.existsSync();
-  var write = outputFile.openSync(mode: FileMode.write);
+  final outputFile = File("${outputDir.path}/gitbaker.g.dart");
+  final outputFileExisted = outputFile.existsSync();
+  final write = outputFile.openSync(mode: FileMode.write);
   write.lockSync(FileLock.blockingExclusive);
   spinner!.success(
     "Output file located at ${outputFile.absolute.path.replaceAll("\\", "/")}",
@@ -176,39 +200,42 @@ void main(_) async {
 
 library;""");
 
-    out("\nenum RemoteType { fetch, push }");
+    out("\nenum RemoteType { fetch, push, unknown }");
     out(
-      "\nfinal class Remote {\n\tfinal String name;\n\tfinal Uri url;\n\tfinal RemoteType type;\n\n\tRemote._({required this.name, required this.url, required this.type});\n}",
+      "\nfinal class Remote {\nfinal String name;\nfinal Uri url;\nfinal RemoteType type;\n\nRemote._({required this.name, required this.url, required this.type});\n}",
     );
     out(
-      "\nfinal class User {\n\tfinal String name;\n\tfinal String email;\n\n\tUser._({required this.name, required this.email});\n}",
+      "\nfinal class User {\nfinal String name;\nfinal String email;\n\nUser._({required this.name, required this.email});\n}",
     );
     out(
-      "\nfinal class Commit {\n\tfinal String hash;\n\tfinal String message;\n\tfinal DateTime date;\n\n\t/// Whether the commit has been signed.\n\t/// Careful: not whether the signature is valid!\n\tfinal bool signed;\n\n\tfinal String _branch;\n\tBranch get branch => GitBaker.branches.singleWhere((e) => e.name == _branch);\n\n\tfinal String _author;\n\tUser get author => GitBaker.contributors.singleWhere((e) => e.email == _author);\n\n\tCommit._(this.hash, {required this.message, required this.date, required this.signed, required String branch, required String author}) : _branch = branch, _author = author;\n}",
+      "\nfinal class Commit {\nfinal String hash;\nfinal String message;\nfinal DateTime date;\n\n/// Whether the commit has been signed.\n/// Careful: not whether the signature is valid!\nfinal bool signed;\n\nfinal String _branch;\nBranch get branch => GitBaker.branches.singleWhere((e) => e.name == _branch);\n\nfinal String _author;\nUser get author => GitBaker.contributors.singleWhere((e) => e.email == _author);\n\nCommit._(this.hash, {required this.message, required this.date, required this.signed, required String branch, required String author}) : _branch = branch, _author = author;\n}",
     );
     out(
-      "\nfinal class Branch {\n\tfinal String hash;\n\tfinal String name;\n\tfinal List<Commit> commits;\n\n\tbool get isCurrent => this == GitBaker.currentBranch;\n\tbool get isDefault => this == GitBaker.defaultBranch;\n\n\tBranch._(this.hash, {required this.name, required this.commits});\n}",
+      "\nfinal class Branch {\nfinal String hash;\nfinal String name;\nfinal List<Commit> commits;\n\nbool get isCurrent => this == GitBaker.currentBranch;\nbool get isDefault => this == GitBaker.defaultBranch;\n\nBranch._(this.hash, {required this.name, required this.commits});\n}",
     );
     out(
-      "\nfinal class Tag {\n\tfinal String hash;\n\tfinal String name;\n\tfinal String description;\n\n\tTag._(this.hash, {required this.name, required this.description});\n}",
+      "\nfinal class Tag {\nfinal String hash;\nfinal String name;\nfinal String description;\n\nTag._(this.hash, {required this.name, required this.description});\n}",
     );
 
     out("\nfinal class GitBaker {");
 
-    var descriptionFile = File("${gitRoot.path}/.git/description");
+    final descriptionFile = File("${gitRoot.path}/.git/description");
     var description =
         descriptionFile.existsSync()
-            ? escape(descriptionFile.readAsStringSync().trim())
+            ? descriptionFile.readAsStringSync().trim()
             : null;
     if (description ==
         "Unnamed repository; edit this file 'description' to name the repository.") {
       description = null;
     }
     out(
-      "\tstatic final String? description = ${description == null ? "null" : "r\"$description\""};",
+      "static final String? description = ${description == null ? "null" : escape(description)};",
     );
 
-    out("\n\tstatic final Set<Remote> remotes = {");
+    out(
+      "\nstatic Remote get remote => remotes.firstWhere((r) => r.name == 'origin' && r.type == RemoteType.fetch, orElse: () => remotes.firstWhere((r) => r.type == RemoteType.fetch, orElse: () => remotes.first));",
+    );
+    out("static final Set<Remote> remotes = {");
     for (var remote in (await run("git", [
       "remote",
       "-v",
@@ -217,16 +244,21 @@ library;""");
           remote
               .replaceAll(RegExp(r'\s+'), " ")
               .split(" ")
-              .map((e) => e.trim().replaceAll('"', '\\"'))
+              .map((e) => e.trim())
               .toList();
-      parts[2] = parts[2] == "(fetch)" ? "RemoteType.fetch" : "RemoteType.push";
+      parts[2] =
+          (parts[2] == "(fetch)")
+              ? "RemoteType.fetch"
+              : (parts[2] == "(push)")
+              ? "RemoteType.push"
+              : "RemoteType.unknown";
       out(
-        "\t\tRemote._(name: r\"${parts[0]}\", url: Uri.parse(r\"${parts[1]}\"), type: ${parts[2]}),",
+        "Remote._(name: ${escape(parts[0])}, url: Uri.parse(${escape(parts[1])}), type: ${parts[2]}),",
       );
     }
-    out("\t};");
+    out("};");
 
-    out("\n\tstatic final Set<User> contributors = {");
+    out("\nstatic final Set<User> contributors = {");
     for (var commit
         in (await run("git", ["log", "--pretty=format:%an|%ae", "--all"]))
             .stdout
@@ -235,28 +267,51 @@ library;""");
             .where((e) => e.isNotEmpty)
             .toSet()
             .toList()) {
-      var parts = commit.split("|").map((e) => e.trim()).toList();
-      out(
-        "\t\tUser._(name: r\"${escape(parts[0])}\", email: r\"${parts[1]}\"),",
-      );
+      final parts = commit.split("|").map((e) => e.trim()).toList();
+      out("User._(name: ${escape(parts[0])}, email: ${escape(parts[1])}),");
     }
-    out("\t};");
+    out("};");
 
+    final defaultBranch = ((await run("git", [
+        "rev-parse",
+        "--abbrev-ref",
+        "origin/HEAD",
+      ])).stdout.toString().trim().split("/")
+      ..removeWhere((e) => e == "origin")).join("/");
     out(
-      "\n\tstatic final Branch defaultBranch = branches.singleWhere((e) => e.name == r\"${((await run("git", ["rev-parse", "--abbrev-ref", "origin/HEAD"])).stdout.toString().trim().split("/")..removeWhere((e) => e == "origin")).join("/")}\");",
-    );
-    out(
-      "\tstatic final Branch currentBranch = branches.singleWhere((e) => e.name == r\"${((await run("git", ["rev-parse", "--abbrev-ref", "HEAD"])).stdout.toString().trim().split("/")..removeWhere((e) => e == "origin")).join("/")}\");",
+      "\nstatic final Branch defaultBranch = branches.singleWhere((e) => e.name == ${escape(defaultBranch)});",
     );
 
-    out("\n\tstatic final Set<Branch> branches = {");
+    final currentBranch = ((await run("git", [
+        "rev-parse",
+        "--abbrev-ref",
+        "HEAD",
+      ])).stdout.toString().trim().split("/")
+      ..removeWhere((e) => e == "origin")).join("/");
+    out(
+      "static final Branch currentBranch = branches.singleWhere((e) => e.name == ${escape(currentBranch)});",
+    );
+
+    List<RegExp> regex = [];
+    for (var r in config["branches"]) {
+      try {
+        regex.add(RegExp(r, caseSensitive: false));
+      } catch (_) {}
+    }
+
+    out("\nstatic final Set<Branch> branches = {");
     for (var branch in (await run("git", [
       "branch",
       "--list",
     ])).stdout.toString().split("\n").where((e) => e.isNotEmpty)) {
-      var branchName = branch.substring(2);
+      final branchName = branch.substring(2);
+      if (![defaultBranch, currentBranch].contains(branchName) &&
+          !regex.any((e) => e.hasMatch(branchName))) {
+        continue;
+      }
+
       out(
-        "\t\tBranch._(r\"${(await run("git", ["rev-parse", branchName])).stdout.toString().trim()}\", name: r\"$branchName\", commits: [",
+        "Branch._(${escape((await run("git", ["rev-parse", branchName])).stdout.toString().trim())}, name: ${escape(branchName)}, commits: [",
       );
       for (var commit
           in (await run("git", [
@@ -269,34 +324,30 @@ library;""");
               .reversed
               .where((element) => element.isNotEmpty)
               .toList()) {
-        var parts =
-            commit
-                .split("|")
-                .map((e) => e.trim().replaceAll('"', '\\"'))
-                .toList();
-        var date = DateTime.fromMillisecondsSinceEpoch(
+        final parts = commit.split("|").map((e) => e.trim()).toList();
+        final date = DateTime.fromMillisecondsSinceEpoch(
           (int.tryParse(parts[3]) ?? 0) * 1000,
           isUtc: true,
         );
         out(
-          "\t\t\tCommit._(r\"${parts[0]}\", message: r\"${escape(parts[1])}\", date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}), // ${date.toIso8601String()}\nsigned: ${(await run("git", ["verify-commit", parts[0]])).stderr.toString().trim().isEmpty ? "false" : "true"}, branch: r\"${branchName.replaceAll('"', '\\"')}\", author: r\"${parts[2]}\"),",
+          "Commit._(${escape(parts[0])}, message: ${escape(parts[1])}, date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}, isUtc: true), // ${date.toIso8601String()}\nsigned: ${(await run("git", ["verify-commit", parts[0]])).stderr.toString().trim().isEmpty ? "false" : "true"}, branch: ${escape(branchName)}, author: ${escape(parts[2])}),",
         );
       }
-      out("\t\t]),");
+      out("]),");
     }
-    out("\t};");
+    out("};");
 
-    out("\n\tstatic final Set<Tag> tags = {");
+    out("\nstatic final Set<Tag> tags = {");
     for (var tag in (await run("git", [
       "tag",
       "-ln9",
     ])).stdout.toString().split("\n").where((e) => e.isNotEmpty)) {
-      var parts = tag.split(" ")..removeWhere((e) => e.trim().isEmpty);
+      final parts = tag.split(" ")..removeWhere((e) => e.trim().isEmpty);
       out(
-        "\t\tTag._(r\"${(await run("git", ["rev-parse", parts[0]])).stdout.toString().trim()}\", name: r\"${parts[0]}\", description: r\"${escape((parts..removeAt(0)).join(" "))}\"),",
+        "Tag._(${escape((await run("git", ["rev-parse", parts[0]])).stdout.toString().trim())}, name: ${escape(parts[0])}, description: ${escape((parts..removeAt(0)).join(" "))}),",
       );
     }
-    out("\t};");
+    out("};");
 
     out("}");
 

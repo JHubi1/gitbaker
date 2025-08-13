@@ -22,7 +22,23 @@ dart run gitbaker
 
 GitBaker will then determine the current Git repository to use and bake the information. This should work in most cases, but in some cases might fail. If this happens, make sure the folder you're running the command in is either root of your Git repository or a subdirectory of it.
 
-The command will create a new file called `gitbaker.g.dart` in the `lib/generated` directory of your project. You can change this by defining an output directory in your project's `pubspec.yaml` file:
+## Global Usage
+
+If you use GitBaker frequently, or you don't want to add it as a dev dependency in every project, you can install it globally:
+
+```bash
+dart pub global activate gitbaker
+```
+
+You can then run it from anywhere in your terminal:
+
+```bash
+gitbaker
+```
+
+## Configuration
+
+Either command will create a new file called `gitbaker.g.dart` in the `lib/generated` directory of your project. You can change this by defining an output directory in your project's `pubspec.yaml` file:
 
 ```yaml
 ...
