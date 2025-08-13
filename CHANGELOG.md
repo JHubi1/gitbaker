@@ -1,3 +1,9 @@
+## 0.0.8
+
+- Removed Branch's `hash` property, use `commits.last.hash` instead
+- Removed Tag's `hash` property, use `commit.hash` instead
+- Removed Tag's `description` property, use `commit.message` instead
+
 ## 0.0.7
 
 - Improved escaping of strings in generated code

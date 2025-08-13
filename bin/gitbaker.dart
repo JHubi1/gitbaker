@@ -177,6 +177,8 @@ void main(_) async {
 
   final outputFile = File("${outputDir.path}/gitbaker.g.dart");
   final outputFileExisted = outputFile.existsSync();
+  final outputFileOldContent =
+      outputFileExisted ? outputFile.readAsStringSync() : null;
   final write = outputFile.openSync(mode: FileMode.write);
   write.lockSync(FileLock.blockingExclusive);
   spinner!.success(
@@ -211,10 +213,10 @@ library;""");
       "\nfinal class Commit {\nfinal String hash;\nfinal String message;\nfinal DateTime date;\n\n/// Whether the commit has been signed.\n/// Careful: not whether the signature is valid!\nfinal bool signed;\n\nfinal String _branch;\nBranch get branch => GitBaker.branches.singleWhere((e) => e.name == _branch);\n\nfinal String _author;\nUser get author => GitBaker.contributors.singleWhere((e) => e.email == _author);\n\nCommit._(this.hash, {required this.message, required this.date, required this.signed, required String branch, required String author}) : _branch = branch, _author = author;\n}",
     );
     out(
-      "\nfinal class Branch {\nfinal String hash;\nfinal String name;\nfinal List<Commit> commits;\n\nbool get isCurrent => this == GitBaker.currentBranch;\nbool get isDefault => this == GitBaker.defaultBranch;\n\nBranch._(this.hash, {required this.name, required this.commits});\n}",
+      "\nfinal class Branch {\nfinal String name;\nfinal List<Commit> commits;\n\nbool get isCurrent => this == GitBaker.currentBranch;\nbool get isDefault => this == GitBaker.defaultBranch;\n\nBranch._({required this.name, required this.commits});\n}",
     );
     out(
-      "\nfinal class Tag {\nfinal String hash;\nfinal String name;\nfinal String description;\n\nTag._(this.hash, {required this.name, required this.description});\n}",
+      "\nfinal class Tag {\nfinal String name;\n\nfinal String _commit;\nCommit get commit => GitBaker.branches.expand((branch) => branch.commits).firstWhere((c) => c.hash == _commit);\n\nTag._({required this.name, required String commit}) : _commit = commit;\n}",
     );
 
     out("\nfinal class GitBaker {");
@@ -233,7 +235,7 @@ library;""");
     );
 
     out(
-      "\nstatic Remote get remote => remotes.firstWhere((r) => r.name == 'origin' && r.type == RemoteType.fetch, orElse: () => remotes.firstWhere((r) => r.type == RemoteType.fetch, orElse: () => remotes.first));",
+      "\nstatic Remote get remote => remotes.firstWhere((r) => r.name == \"origin\" && r.type == RemoteType.fetch, orElse: () => remotes.firstWhere((r) => r.type == RemoteType.fetch, orElse: () => remotes.first));",
     );
     out("static final Set<Remote> remotes = {");
     for (var remote in (await run("git", [
@@ -310,9 +312,7 @@ library;""");
         continue;
       }
 
-      out(
-        "Branch._(${escape((await run("git", ["rev-parse", branchName])).stdout.toString().trim())}, name: ${escape(branchName)}, commits: [",
-      );
+      out("Branch._(name: ${escape(branchName)}, commits: [");
       for (var commit
           in (await run("git", [
                 "log",
@@ -344,7 +344,7 @@ library;""");
     ])).stdout.toString().split("\n").where((e) => e.isNotEmpty)) {
       final parts = tag.split(" ")..removeWhere((e) => e.trim().isEmpty);
       out(
-        "Tag._(${escape((await run("git", ["rev-parse", parts[0]])).stdout.toString().trim())}, name: ${escape(parts[0])}, description: ${escape((parts..removeAt(0)).join(" "))}),",
+        "Tag._(name: ${escape(parts[0])}, commit: ${escape((await run("git", ["rev-parse", parts[0]])).stdout.toString().trim())}),",
       );
     }
     out("};");
@@ -366,6 +366,14 @@ library;""");
   } catch (e, s) {
     spinner?.fail();
     final spacer = "${AnsiEscape.faint}|${AnsiEscape.reset}";
+
+    if (outputFileExisted && outputFileOldContent != null) {
+      await write.writeString(outputFileOldContent);
+      write.closeSync();
+    } else {
+      write.closeSync();
+      outputFile.deleteSync();
+    }
 
     print(
       AnsiEscape.red.format(
