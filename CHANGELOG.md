@@ -1,3 +1,18 @@
+## 0.1.0
+
+- Documentation of generated classes
+- New `presentIn` property on `Commit` returning all branches the commit is present in
+- Removed `branch` property on `Commit`, use `presentIn` instead
+- `GitBaker` now has a new `commits` property returning all commits in the repository
+  - Including those not present in any branch
+- `Branch`'s `commits` property now doesn't store the `Commit` objects directly anymore, but only their hashes. It then resolves the hashes to `Commit` objects on access.
+  - This way, `Commit` objects are only created once and reused, making comparisons and lookups easier and faster
+- `Branch` has a new `revision` property returning the number of commits in the branch
+  - This only takes commits that are a direct ancestor of the branch's HEAD into account
+  - So if a branch merges another branch, the commits from the merged branch are not counted, only the merge commit itself
+- `Remote`'s `url` property is now named `uri`
+- `contributors` property is now called `members`
+
 ## 0.0.8
 
 - Removed Branch's `hash` property, use `commits.last.hash` instead

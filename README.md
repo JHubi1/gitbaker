@@ -6,6 +6,8 @@ An easy and simple-to-integrate info baker for Git repositories into your Flutte
 
 Did you ever wanted to show the latest commit number or the last commit message in your Flutter app, as a version number for example? GitBaker is here to help you with that. It bakes the information from your Git repository directly into your Flutter or Dart project.
 
+> An example for a generated file can be found [in the example folder](https://github.com/JHubi1/gitbaker/blob/main/example/gitbaker.g.dart).
+
 ## Usage
 
 Firstly, add the GitBaker package to your project by running the following command:

@@ -37,15 +37,14 @@ class AnsiEscape {
   static AnsiEscape get yellow => AnsiEscape(93);
 }
 
+const s = "\x1E";
+String escape(String text) => jsonEncode(text).replaceAll(r"$", r"\$");
+
 class RunResult {
   final dynamic stdout;
   final dynamic stderr;
 
   RunResult(this.stdout, this.stderr);
-}
-
-String escape(String text) {
-  return jsonEncode(text).replaceAll(r"$", r"\$");
 }
 
 Future<RunResult> run(String executable, List<String> arguments) async {
@@ -198,26 +197,98 @@ void main(_) async {
 // This is an automatically generated file by GitBaker. Do not modify manually.
 // To regenerate this file, please rerun the command 'dart run gitbaker'
 
-// ignore_for_file: unnecessary_nullable_for_final_variable_declarations
-
+/// Generated Git history and metadata for the current Git repository.
+/// 
+/// See <https://pub.dev/packages/gitbaker> for more information. To update or
+/// regenerate this file, run `dart run gitbaker` somewhere in this repository.
 library;""");
 
-    out("\nenum RemoteType { fetch, push, unknown }");
-    out(
-      "\nfinal class Remote {\nfinal String name;\nfinal Uri url;\nfinal RemoteType type;\n\nRemote._({required this.name, required this.url, required this.type});\n}",
-    );
-    out(
-      "\nfinal class User {\nfinal String name;\nfinal String email;\n\nUser._({required this.name, required this.email});\n}",
-    );
-    out(
-      "\nfinal class Commit {\nfinal String hash;\nfinal String message;\nfinal DateTime date;\n\n/// Whether the commit has been signed.\n/// Careful: not whether the signature is valid!\nfinal bool signed;\n\nfinal String _branch;\nBranch get branch => GitBaker.branches.singleWhere((e) => e.name == _branch);\n\nfinal String _author;\nUser get author => GitBaker.contributors.singleWhere((e) => e.email == _author);\n\nCommit._(this.hash, {required this.message, required this.date, required this.signed, required String branch, required String author}) : _branch = branch, _author = author;\n}",
-    );
-    out(
-      "\nfinal class Branch {\nfinal String name;\nfinal List<Commit> commits;\n\nbool get isCurrent => this == GitBaker.currentBranch;\nbool get isDefault => this == GitBaker.defaultBranch;\n\nBranch._({required this.name, required this.commits});\n}",
-    );
-    out(
-      "\nfinal class Tag {\nfinal String name;\n\nfinal String _commit;\nCommit get commit => GitBaker.branches.expand((branch) => branch.commits).firstWhere((c) => c.hash == _commit);\n\nTag._({required this.name, required String commit}) : _commit = commit;\n}",
-    );
+    out("""
+/// Represents the type of remote operation for a Git repository.
+enum RemoteType { fetch, push, unknown }""");
+    out("""
+/// A class representing a remote repository or connection.
+final class Remote {
+  final String name;
+  final RemoteType type;
+
+  final String _uri;
+  Uri get uri => Uri.parse(_uri);
+
+  const Remote._({required this.name, required this.type, required String uri}) : _uri = uri;
+}""");
+    out("""
+/// A class representing a contributor to the repository.
+/// 
+/// Each user is uniquely identified by their email address. Multiple users
+/// may share the same name, but not the same email.
+final class User {
+  final String name;
+  final String email;
+
+  const User._({required this.name, required this.email});
+}""");
+    out("""
+/// A class representing a single commit in the Git repository.
+final class Commit {
+  final String hash;
+  final String message;
+  final DateTime date;
+
+  /// Whether the commit has been signed.
+  /// 
+  /// ***Careful:*** Not whether the signature is valid, only whether it
+  /// exists. Git is unable to verify signatures without access to the public
+  /// key of the signer, which is not stored in the repository.
+  final bool signed;
+
+  /// The branches that contain this commit.
+  /// 
+  /// This may be empty if the commit is not present in any branch (e.g. if it
+  /// is only present in tags or is an orphaned commit).
+  Set<Branch> get presentIn => GitBaker.branches.where((b) => b.commits.contains(this)).toSet();
+
+  final String _author;
+  User get author => GitBaker.members.singleWhere((e) => e.email == _author);
+
+  final String _committer;
+  User get committer => GitBaker.members.singleWhere((e) => e.email == _committer);
+
+  const Commit._(this.hash, {required this.message, required this.date, required this.signed, required String author, required String committer}) : _author = author, _committer = committer;
+}""");
+    out("""
+/// A class representing a Git branch.
+final class Branch {
+  final String name;
+
+  /// The number of commits in this branch, following only the first parent.
+  /// 
+  /// This value can be used to determine the relative age of branches, but
+  /// should not be used to determine the absolute number of commits, as it
+  /// only follows the first parent and does not count merge commits.
+  final int revision;
+
+  final Set<String> _commits;
+  Set<Commit> get commits => _commits.map((h) => GitBaker.commits.singleWhere((c) => c.hash == h)).toSet();
+
+  bool get isCurrent => this == GitBaker.currentBranch;
+  bool get isDefault => this == GitBaker.defaultBranch;
+
+  const Branch._({required this.name, required this.revision, required Set<String> commits}) : _commits = commits;
+}""");
+    out("""
+/// A class representing a Git tag.
+/// 
+/// You may use the [commit] property's message as a description of the tag
+/// next to its name.
+final class Tag {
+  final String name;
+
+  final String _commit;
+  Commit get commit => GitBaker.commits.singleWhere((c) => c.hash == _commit);
+
+  const Tag._({required this.name, required String commit}) : _commit = commit;
+}""");
 
     out("\nfinal class GitBaker {");
 
@@ -231,13 +302,32 @@ library;""");
       description = null;
     }
     out(
-      "static final String? description = ${description == null ? "null" : escape(description)};",
+      """
+// possibility of null if no description is set
+// ignore: unnecessary_nullable_for_final_variable_declarations
+static const String? description = ${description == null ? "null" : escape(description)};""",
     );
 
     out(
-      "\nstatic Remote get remote => remotes.firstWhere((r) => r.name == \"origin\" && r.type == RemoteType.fetch, orElse: () => remotes.firstWhere((r) => r.type == RemoteType.fetch, orElse: () => remotes.first));",
+      """
+/// The most likely remote to be used for fetching and pushing.
+/// 
+/// This is determined by first looking for a remote named "origin" with type
+/// [RemoteType.fetch]. If no such remote exists, the first remote with type
+/// [RemoteType.fetch] is used, regardless of its name. If no such remote
+/// exists, the first remote in [remotes] is used.
+static Remote get remote => remotes.firstWhere((r) => r.name == "origin" && r.type == RemoteType.fetch, orElse: () => remotes.firstWhere((r) => r.type == RemoteType.fetch, orElse: () => remotes.first));""",
     );
-    out("static final Set<Remote> remotes = {");
+    out("""
+/// All remotes configured for this repository.
+/// 
+/// This includes remotes for fetching and pushing, as well as any other types
+/// of remotes that may be configured.
+/// 
+/// Note that multiple remotes may have the same [name] and [uri], but different
+/// [type]s. For example, a remote may be configured for both fetching and
+/// pushing.
+static const Set<Remote> remotes = {""");
     for (var remote in (await run("git", [
       "remote",
       "-v",
@@ -255,21 +345,34 @@ library;""");
               ? "RemoteType.push"
               : "RemoteType.unknown";
       out(
-        "Remote._(name: ${escape(parts[0])}, url: Uri.parse(${escape(parts[1])}), type: ${parts[2]}),",
+        "Remote._(name: ${escape(parts[0])}, type: ${parts[2]}, uri: ${escape(parts[1])}),",
       );
     }
     out("};");
 
-    out("\nstatic final Set<User> contributors = {");
+    out("""
+/// All members to this repository.
+/// 
+/// Each user is uniquely identified by their email address. Multiple users may
+/// share the same name, but not the same email.
+static const Set<User> members = {""");
     for (var commit
-        in (await run("git", ["log", "--pretty=format:%an|%ae", "--all"]))
-            .stdout
-            .toString()
-            .split("\n")
-            .where((e) => e.isNotEmpty)
-            .toSet()
-            .toList()) {
-      final parts = commit.split("|").map((e) => e.trim()).toList();
+        in <String>{}
+          ..addAll(
+            (await run("git", [
+              "log",
+              "--pretty=format:%an$s%ae",
+              "--all",
+            ])).stdout.toString().split("\n").where((e) => e.isNotEmpty),
+          )
+          ..addAll(
+            (await run("git", [
+              "log",
+              "--pretty=format:%cn$s%ce",
+              "--all",
+            ])).stdout.toString().split("\n").where((e) => e.isNotEmpty),
+          )) {
+      final parts = commit.split(s).map((e) => e.trim()).toList();
       out("User._(name: ${escape(parts[0])}, email: ${escape(parts[1])}),");
     }
     out("};");
@@ -281,7 +384,9 @@ library;""");
       ])).stdout.toString().trim().split("/")
       ..removeWhere((e) => e == "origin")).join("/");
     out(
-      "\nstatic final Branch defaultBranch = branches.singleWhere((e) => e.name == ${escape(defaultBranch)});",
+      """
+/// The default branch of the repository, usually "main" or "master".
+static final Branch defaultBranch = branches.singleWhere((e) => e.name == ${escape(defaultBranch)});""",
     );
 
     final currentBranch = ((await run("git", [
@@ -291,7 +396,9 @@ library;""");
       ])).stdout.toString().trim().split("/")
       ..removeWhere((e) => e == "origin")).join("/");
     out(
-      "static final Branch currentBranch = branches.singleWhere((e) => e.name == ${escape(currentBranch)});",
+      """
+/// The currently checked out branch of the repository.
+static final Branch currentBranch = branches.singleWhere((e) => e.name == ${escape(currentBranch)});""",
     );
 
     List<RegExp> regex = [];
@@ -301,43 +408,58 @@ library;""");
       } catch (_) {}
     }
 
-    out("\nstatic final Set<Branch> branches = {");
-    for (var branch in (await run("git", [
-      "branch",
-      "--list",
-    ])).stdout.toString().split("\n").where((e) => e.isNotEmpty)) {
-      final branchName = branch.substring(2);
-      if (![defaultBranch, currentBranch].contains(branchName) &&
-          !regex.any((e) => e.hasMatch(branchName))) {
+    out("""
+/// All branches in the repository.
+/// 
+/// If the configuration sets the list `branches`, only branches matching any of
+/// the provided regular expressions are included. If it is empty or not set,
+/// all branches are included.
+static const Set<Branch> branches = {""");
+    for (var branch
+        in (await run("git", ["branch", "--list"])).stdout
+            .toString()
+            .split("\n")
+            .where((e) => e.isNotEmpty)
+            .map((e) => e.trim().substring(2))
+            .toList()
+          ..sort()) {
+      if (![defaultBranch, currentBranch].contains(branch) &&
+          !regex.any((e) => e.hasMatch(branch))) {
         continue;
       }
+      final revision =
+          int.tryParse(
+            (await run("git", [
+              "rev-list",
+              "--count",
+              "--first-parent",
+              branch,
+            ])).stdout.toString().trim(),
+          ) ??
+          0;
 
-      out("Branch._(name: ${escape(branchName)}, commits: [");
+      out("Branch._(name: ${escape(branch)}, revision: $revision, commits: {");
       for (var commit
-          in (await run("git", [
-                "log",
-                "--pretty=format:%H|%s|%ae|%at",
-                branchName,
-              ])).stdout
+          in (await run("git", ["rev-list", branch])).stdout
               .toString()
               .split("\n")
               .reversed
               .where((element) => element.isNotEmpty)
               .toList()) {
-        final parts = commit.split("|").map((e) => e.trim()).toList();
-        final date = DateTime.fromMillisecondsSinceEpoch(
-          (int.tryParse(parts[3]) ?? 0) * 1000,
-          isUtc: true,
-        );
-        out(
-          "Commit._(${escape(parts[0])}, message: ${escape(parts[1])}, date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}, isUtc: true), // ${date.toIso8601String()}\nsigned: ${(await run("git", ["verify-commit", parts[0]])).stderr.toString().trim().isEmpty ? "false" : "true"}, branch: ${escape(branchName)}, author: ${escape(parts[2])}),",
-        );
+        out("${escape(commit)},");
       }
-      out("]),");
+      out("}),");
     }
     out("};");
 
-    out("\nstatic final Set<Tag> tags = {");
+    out("""
+/// All tags in the repository.
+/// 
+/// [Tag.commit.message] may be used as a description of a tag.
+/// 
+/// Note that this won't get the release notes of Git hosting services like
+/// GitHub or GitLab, but only the tag name.
+static const Set<Tag> tags = {""");
     for (var tag in (await run("git", [
       "tag",
       "-ln9",
@@ -348,6 +470,25 @@ library;""");
       );
     }
     out("};");
+
+    out("""
+/// All commits in the repository, ordered from oldest to newest.
+static final Set<Commit> commits = Set.unmodifiable({""");
+    for (var commit in (await run("git", [
+      "log",
+      "--reflog",
+      "--pretty=format:%H$s%s$s%ae$s%at$s%ce$s%ct$s%G?",
+    ])).stdout.toString().split("\n").reversed.where((e) => e.isNotEmpty)) {
+      final parts = commit.split(s).map((e) => e.trim()).toList();
+      final date = DateTime.fromMillisecondsSinceEpoch(
+        (int.tryParse(parts[5]) ?? 0) * 1000,
+        isUtc: true,
+      );
+      out(
+        "Commit._(${escape(parts[0])}, message: ${escape(parts[1])}, date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}, isUtc: true), // ${date.toIso8601String()}\nsigned: ${["G", "U", "E"].contains(parts[6])}, author: ${escape(parts[2])}, committer: ${escape(parts[4])}),",
+      );
+    }
+    out("});");
 
     out("}");
 
