@@ -1,6 +1,6 @@
 name: gitbaker
 description: An easy and simple-to-integrate info baker for Git repositories into your Flutter or Dart project.
-version: 0.0.8
+version: 0.1.0
 repository: https://github.com/JHubi1/gitbaker
 
 platforms:

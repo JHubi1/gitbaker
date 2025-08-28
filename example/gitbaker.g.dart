@@ -1,4 +1,4 @@
-// GitBaker v0.0.6 <https://pub.dev/packages/gitbaker>
+// GitBaker v0.1.0 <https://pub.dev/packages/gitbaker>
 
 // This is an automatically generated file by GitBaker. Do not modify manually.
 // To regenerate this file, please rerun the command 'dart run gitbaker'
@@ -182,7 +182,7 @@ final class GitBaker {
   static const Set<Branch> branches = {
     Branch._(
       name: "main",
-      revision: 18,
+      revision: 19,
       commits: {
         "c1ed74ebd5953ca7cd2cae336465e8ba6b7bafe8",
         "c9415e474684b460eb55f934c45348e97bf03b63",
@@ -203,6 +203,7 @@ final class GitBaker {
         "0137281f606832ee5567b5e5d938040ffe1144e9",
         "34f2ba206d6980e36ca4200cc1e2bb81f0a09cad",
         "71b769101fe00ee91135feaa29bcaee09854197e",
+        "b0c29dcfc83fa9a02b92214790ca8b5257bc1f97",
       },
     ),
   };
@@ -430,6 +431,17 @@ final class GitBaker {
         1755100733000,
         isUtc: true,
       ), // 2025-08-13T15:58:53.000Z
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
+    Commit._(
+      "b0c29dcfc83fa9a02b92214790ca8b5257bc1f97",
+      message: "Documentation, centralized commits, committers, …",
+      date: DateTime.fromMillisecondsSinceEpoch(
+        1756380811000,
+        isUtc: true,
+      ), // 2025-08-28T11:33:31.000Z
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
