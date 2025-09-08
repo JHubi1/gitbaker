@@ -16,14 +16,11 @@ enum RemoteType { fetch, push, unknown }
 final class Remote {
   final String name;
   final RemoteType type;
+  final Uri uri;
 
-  final String _uri;
-  Uri get uri => Uri.parse(_uri);
+  const Remote._({required this.name, required this.type, required this.uri});
 
-  const Remote._({required this.name, required this.type, required String uri})
-    : _uri = uri;
-
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "name": name,
     "type": type.name,
     "uri": uri.toString(),
@@ -40,7 +37,7 @@ final class User {
 
   const User._({required this.name, required this.email});
 
-  Map<String, dynamic> toJson() => {"name": name, "email": email};
+  Map<String, Object?> toJson() => {"name": name, "email": email};
 }
 
 /// A class representing a Git branch.
@@ -69,7 +66,7 @@ final class Branch {
     required Set<String> commits,
   }) : _commits = commits;
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "name": name,
     "revision": revision,
     "commits": _commits.toList(),
@@ -88,7 +85,7 @@ final class Tag {
 
   const Tag._({required this.name, required String commit}) : _commit = commit;
 
-  Map<String, dynamic> toJson() => {"name": name, "commit": _commit};
+  Map<String, Object?> toJson() => {"name": name, "commit": _commit};
 }
 
 /// A class representing a single commit in the Git repository.
@@ -131,11 +128,11 @@ final class Commit {
   }) : _author = author,
        _committer = committer;
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "hash": hash,
     "hashAbbreviated": hashAbbreviated,
     "message": message,
-    "date": date.toUtc().millisecondsSinceEpoch,
+    "date": date.toIso8601String(),
     "signed": signed,
     "author": _author,
     "committer": _committer,
@@ -143,6 +140,8 @@ final class Commit {
 }
 
 final class GitBaker {
+  GitBaker._();
+
   // possibility of null if no description is set
   // ignore: unnecessary_nullable_for_final_variable_declarations
   static const String? description = null;
@@ -170,18 +169,18 @@ final class GitBaker {
   /// Note that multiple remotes may have the same [name] and [uri], but
   /// different [type]s. For example, a remote may be configured for both
   /// fetching and pushing.
-  static const Set<Remote> remotes = {
+  static final Set<Remote> remotes = Set.unmodifiable({
     Remote._(
       name: "origin",
       type: RemoteType.fetch,
-      uri: "https://github.com/JHubi1/gitbaker.git",
+      uri: Uri.parse("https://github.com/JHubi1/gitbaker.git"),
     ),
     Remote._(
       name: "origin",
       type: RemoteType.push,
-      uri: "https://github.com/JHubi1/gitbaker.git",
+      uri: Uri.parse("https://github.com/JHubi1/gitbaker.git"),
     ),
-  };
+  });
 
   /// All members to this repository.
   ///
@@ -211,7 +210,7 @@ final class GitBaker {
   static const Set<Branch> branches = {
     Branch._(
       name: "main",
-      revision: 22,
+      revision: 23,
       commits: {
         "c1ed74ebd5953ca7cd2cae336465e8ba6b7bafe8",
         "c9415e474684b460eb55f934c45348e97bf03b63",
@@ -236,6 +235,7 @@ final class GitBaker {
         "86db04bf378d50fe66f929767a98f44fa3f9e5f1",
         "777235d62342f93d8e89f989e0884ab1cb65822d",
         "937a8c6ef5da700335700d0b66c0173f998ddf9f",
+        "b8402cd897c5ddf4f34c1c93ce9297cd62deebbb",
       },
     ),
   };
@@ -263,10 +263,7 @@ final class GitBaker {
       "c1ed74ebd5953ca7cd2cae336465e8ba6b7bafe8",
       hashAbbreviated: "c1ed74e",
       message: "Initial commit",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735264927000,
-        isUtc: true,
-      ), // 2024-12-27T02:02:07.000Z
+      date: DateTime.parse("2024-12-27T02:02:07.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -275,10 +272,7 @@ final class GitBaker {
       "c9415e474684b460eb55f934c45348e97bf03b63",
       hashAbbreviated: "c9415e4",
       message: "Updated changelog, added GHA",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735265093000,
-        isUtc: true,
-      ), // 2024-12-27T02:04:53.000Z
+      date: DateTime.parse("2024-12-27T02:04:53.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -287,10 +281,7 @@ final class GitBaker {
       "1a6ed49e2258b7d7d444ec8d33862c34d6341d05",
       hashAbbreviated: "1a6ed49",
       message: "Various bug fixes and improvements",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735309319000,
-        isUtc: true,
-      ), // 2024-12-27T14:21:59.000Z
+      date: DateTime.parse("2024-12-27T14:21:59.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -299,10 +290,7 @@ final class GitBaker {
       "c8ea80bba981db8fdfab32df3d415ef49ff7be1e",
       hashAbbreviated: "c8ea80b",
       message: "Updated readme and added example",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735309610000,
-        isUtc: true,
-      ), // 2024-12-27T14:26:50.000Z
+      date: DateTime.parse("2024-12-27T14:26:50.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -311,10 +299,7 @@ final class GitBaker {
       "31431b8bc1b0049d343ef0c0faeaad09757a5e7e",
       hashAbbreviated: "31431b8",
       message: "Tweaks",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735309934000,
-        isUtc: true,
-      ), // 2024-12-27T14:32:14.000Z
+      date: DateTime.parse("2024-12-27T14:32:14.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -323,10 +308,7 @@ final class GitBaker {
       "35123038e89c6cd100febf021a1f4163bbe0c829",
       hashAbbreviated: "3512303",
       message: "Removed version dependency",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735310063000,
-        isUtc: true,
-      ), // 2024-12-27T14:34:23.000Z
+      date: DateTime.parse("2024-12-27T14:34:23.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -335,10 +317,7 @@ final class GitBaker {
       "586d7ac0a7c41cdf75d8dd24f44f3b2d1eb57587",
       hashAbbreviated: "586d7ac",
       message: "Support git encoding",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1735311357000,
-        isUtc: true,
-      ), // 2024-12-27T14:55:57.000Z
+      date: DateTime.parse("2024-12-27T14:55:57.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -347,10 +326,7 @@ final class GitBaker {
       "38b6662cfe57e1e24f865b4ac23709e3e432a61a",
       hashAbbreviated: "38b6662",
       message: "Contributors and signed commits",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1736119504000,
-        isUtc: true,
-      ), // 2025-01-05T23:25:04.000Z
+      date: DateTime.parse("2025-01-05T23:25:04.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -359,10 +335,7 @@ final class GitBaker {
       "239e300ab93800cb3a6cf8eb2477c8830bc558c8",
       hashAbbreviated: "239e300",
       message: "Added platform suggestion",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1736120007000,
-        isUtc: true,
-      ), // 2025-01-05T23:33:27.000Z
+      date: DateTime.parse("2025-01-05T23:33:27.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -371,10 +344,7 @@ final class GitBaker {
       "c97517c4d4819db244fce8489841181778da8cb8",
       hashAbbreviated: "c97517c",
       message: "Update README.md",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1736729005000,
-        isUtc: true,
-      ), // 2025-01-13T00:43:25.000Z
+      date: DateTime.parse("2025-01-13T00:43:25.000Z"),
       signed: true,
       author: "hudson.afonso@gmail.com",
       committer: "noreply@github.com",
@@ -383,10 +353,7 @@ final class GitBaker {
       "8728a580d22533955ca0fb7ab957aaf8da31b6d4",
       hashAbbreviated: "8728a58",
       message: "Merge pull request #1 from HudsonAfonso/patch-1",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1741101801000,
-        isUtc: true,
-      ), // 2025-03-04T15:23:21.000Z
+      date: DateTime.parse("2025-03-04T15:23:21.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "noreply@github.com",
@@ -395,10 +362,7 @@ final class GitBaker {
       "86357fa20a31fcabfdff00774cd78024824a7e56",
       hashAbbreviated: "86357fa",
       message: "Private constructors, formatting, better CLI",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1745015328000,
-        isUtc: true,
-      ), // 2025-04-18T22:28:48.000Z
+      date: DateTime.parse("2025-04-18T22:28:48.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -407,10 +371,7 @@ final class GitBaker {
       "33fa570fef9ef2243cb105293e668d622785d75c",
       hashAbbreviated: "33fa570",
       message: "Updated version",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1745015362000,
-        isUtc: true,
-      ), // 2025-04-18T22:29:22.000Z
+      date: DateTime.parse("2025-04-18T22:29:22.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -419,10 +380,7 @@ final class GitBaker {
       "7ab5685f0cbeeec29bb2b0a5523561408aa75cd0",
       hashAbbreviated: "7ab5685",
       message: "Encoding, final classes, no `intl` dependency",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1751190679000,
-        isUtc: true,
-      ), // 2025-06-29T09:51:19.000Z
+      date: DateTime.parse("2025-06-29T09:51:19.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -431,10 +389,7 @@ final class GitBaker {
       "64bcf42e6825365a235ca7bb26ae2f45ff345875",
       hashAbbreviated: "64bcf42",
       message: "Typo",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1751190792000,
-        isUtc: true,
-      ), // 2025-06-29T09:53:12.000Z
+      date: DateTime.parse("2025-06-29T09:53:12.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -443,10 +398,7 @@ final class GitBaker {
       "44337dcba6725482e5b0b449caa35d1d428da727",
       hashAbbreviated: "44337dc",
       message: "Escaping, global command, correct date, version",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1755096377000,
-        isUtc: true,
-      ), // 2025-08-13T14:46:17.000Z
+      date: DateTime.parse("2025-08-13T14:46:17.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -455,10 +407,7 @@ final class GitBaker {
       "0137281f606832ee5567b5e5d938040ffe1144e9",
       hashAbbreviated: "0137281",
       message: "Update .gitignore",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1755096709000,
-        isUtc: true,
-      ), // 2025-08-13T14:51:49.000Z
+      date: DateTime.parse("2025-08-13T14:51:49.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -467,10 +416,7 @@ final class GitBaker {
       "34f2ba206d6980e36ca4200cc1e2bb81f0a09cad",
       hashAbbreviated: "34f2ba2",
       message: "Delete gitbaker.g.dart",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1755096776000,
-        isUtc: true,
-      ), // 2025-08-13T14:52:56.000Z
+      date: DateTime.parse("2025-08-13T14:52:56.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -479,10 +425,7 @@ final class GitBaker {
       "71b769101fe00ee91135feaa29bcaee09854197e",
       hashAbbreviated: "71b7691",
       message: "`hash` properties",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1755100733000,
-        isUtc: true,
-      ), // 2025-08-13T15:58:53.000Z
+      date: DateTime.parse("2025-08-13T15:58:53.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -491,10 +434,7 @@ final class GitBaker {
       "b0c29dcfc83fa9a02b92214790ca8b5257bc1f97",
       hashAbbreviated: "b0c29dc",
       message: "Documentation, centralized commits, committers, …",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1756380811000,
-        isUtc: true,
-      ), // 2025-08-28T11:33:31.000Z
+      date: DateTime.parse("2025-08-28T11:33:31.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -503,10 +443,7 @@ final class GitBaker {
       "86db04bf378d50fe66f929767a98f44fa3f9e5f1",
       hashAbbreviated: "86db04b",
       message: "Updated version",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1756380949000,
-        isUtc: true,
-      ), // 2025-08-28T11:35:49.000Z
+      date: DateTime.parse("2025-08-28T11:35:49.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -515,10 +452,7 @@ final class GitBaker {
       "777235d62342f93d8e89f989e0884ab1cb65822d",
       hashAbbreviated: "777235d",
       message: "Create main.dart",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1756396943000,
-        isUtc: true,
-      ), // 2025-08-28T16:02:23.000Z
+      date: DateTime.parse("2025-08-28T16:02:23.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
@@ -527,17 +461,23 @@ final class GitBaker {
       "937a8c6ef5da700335700d0b66c0173f998ddf9f",
       hashAbbreviated: "937a8c6",
       message: "Added abbreviated commit hashes",
-      date: DateTime.fromMillisecondsSinceEpoch(
-        1757327230000,
-        isUtc: true,
-      ), // 2025-09-08T10:27:10.000Z
+      date: DateTime.parse("2025-09-08T10:27:10.000Z"),
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
+    Commit._(
+      "b8402cd897c5ddf4f34c1c93ce9297cd62deebbb",
+      hashAbbreviated: "b8402cd",
+      message: "`toJson` methods",
+      date: DateTime.parse("2025-09-08T11:20:59.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
     ),
   });
 
-  Map<String, dynamic> toJson() => {
+  static Map<String, Object?> toJson() => {
     "description": description,
     "remote": remote.toJson(),
     "remotes": remotes.map((r) => r.toJson()).toList(),

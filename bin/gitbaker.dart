@@ -211,13 +211,11 @@ enum RemoteType { fetch, push, unknown }""");
 final class Remote {
   final String name;
   final RemoteType type;
+  final Uri uri;
 
-  final String _uri;
-  Uri get uri => Uri.parse(_uri);
+  const Remote._({required this.name, required this.type, required this.uri});
 
-  const Remote._({required this.name, required this.type, required String uri}) : _uri = uri;
-
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "name": name,
     "type": type.name,
     "uri": uri.toString(),
@@ -234,7 +232,7 @@ final class User {
 
   const User._({required this.name, required this.email});
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "name": name,
     "email": email,
   };
@@ -259,7 +257,7 @@ final class Branch {
 
   const Branch._({required this.name, required this.revision, required Set<String> commits}) : _commits = commits;
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "name": name,
     "revision": revision,
     "commits": _commits.toList(),
@@ -278,7 +276,7 @@ final class Tag {
 
   const Tag._({required this.name, required String commit}) : _commit = commit;
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "name": name,
     "commit": _commit,
   };
@@ -313,18 +311,21 @@ final class Commit {
 
   const Commit._(this.hash, {required this.hashAbbreviated, required this.message, required this.date, required this.signed, required String author, required String committer}) : _author = author, _committer = committer;
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     "hash": hash,
     "hashAbbreviated": hashAbbreviated,
     "message": message,
-    "date": date.toUtc().millisecondsSinceEpoch,
+    "date": date.toIso8601String(),
     "signed": signed,
     "author": _author,
     "committer": _committer,
   };
 }""");
 
-    out("\nfinal class GitBaker {");
+    out("""
+final class GitBaker {
+GitBaker._();
+""");
 
     final descriptionFile = File("${gitRoot.path}/.git/description");
     var description =
@@ -361,7 +362,7 @@ static Remote get remote => remotes.firstWhere((r) => r.name == "origin" && r.ty
   /// Note that multiple remotes may have the same [name] and [uri], but
   /// different [type]s. For example, a remote may be configured for both
   /// fetching and pushing.
-static const Set<Remote> remotes = {""");
+static final Set<Remote> remotes = Set.unmodifiable({""");
     for (var remote in (await run("git", [
       "remote",
       "-v",
@@ -379,10 +380,10 @@ static const Set<Remote> remotes = {""");
               ? "RemoteType.push"
               : "RemoteType.unknown";
       out(
-        "Remote._(name: ${escape(parts[0])}, type: ${parts[2]}, uri: ${escape(parts[1])}),",
+        "Remote._(name: ${escape(parts[0])}, type: ${parts[2]}, uri: Uri.parse(${escape(parts[1])})),",
       );
     }
-    out("};");
+    out("});");
 
     out("""
   /// All members to this repository.
@@ -519,14 +520,14 @@ static final Set<Commit> commits = Set.unmodifiable({""");
         isUtc: true,
       );
       out(
-        "Commit._(${escape(parts[0])}, hashAbbreviated: ${escape(parts[1])}, message: ${escape(parts[2])}, date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}, isUtc: true), // ${date.toIso8601String()}\nsigned: ${["G", "U", "E"].contains(parts[7])}, author: ${escape(parts[3])}, committer: ${escape(parts[5])}),",
+        "Commit._(${escape(parts[0])}, hashAbbreviated: ${escape(parts[1])}, message: ${escape(parts[2])}, date: DateTime.parse(${escape(date.toIso8601String())}), signed: ${["G", "U", "E"].contains(parts[7])}, author: ${escape(parts[3])}, committer: ${escape(parts[5])}),",
       );
     }
     out("});");
 
     out("""
 
-Map<String, dynamic> toJson() => {
+static Map<String, Object?> toJson() => {
   "description": description,
   "remote": remote.toJson(),
   "remotes": remotes.map((r) => r.toJson()).toList(),
