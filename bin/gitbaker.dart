@@ -216,6 +216,12 @@ final class Remote {
   Uri get uri => Uri.parse(_uri);
 
   const Remote._({required this.name, required this.type, required String uri}) : _uri = uri;
+
+  Map<String, dynamic> toJson() => {
+    "name": name,
+    "type": type.name,
+    "uri": uri.toString(),
+  };
 }""");
     out("""
 /// A class representing a contributor to the repository.
@@ -227,6 +233,11 @@ final class User {
   final String email;
 
   const User._({required this.name, required this.email});
+
+  Map<String, dynamic> toJson() => {
+    "name": name,
+    "email": email,
+  };
 }""");
     out("""
 /// A class representing a Git branch.
@@ -236,8 +247,8 @@ final class Branch {
   /// The number of commits in this branch, following only the first parent.
   /// 
   /// This value can be used to determine the relative age of branches, but
-  /// should not be used to determine the absolute number of commits, as it
-  /// only follows the first parent and does not count merge commits.
+  /// should not be used to determine the absolute number of commits. For that,
+  /// use [commits].length instead.
   final int revision;
 
   final Set<String> _commits;
@@ -247,6 +258,12 @@ final class Branch {
   bool get isDefault => this == GitBaker.defaultBranch;
 
   const Branch._({required this.name, required this.revision, required Set<String> commits}) : _commits = commits;
+
+  Map<String, dynamic> toJson() => {
+    "name": name,
+    "revision": revision,
+    "commits": _commits.toList(),
+  };
 }""");
     out("""
 /// A class representing a Git tag.
@@ -260,6 +277,11 @@ final class Tag {
   Commit get commit => GitBaker.commits.singleWhere((c) => c.hash == _commit);
 
   const Tag._({required this.name, required String commit}) : _commit = commit;
+
+  Map<String, dynamic> toJson() => {
+    "name": name,
+    "commit": _commit,
+  };
 }""");
     out("""
 /// A class representing a single commit in the Git repository.
@@ -290,6 +312,16 @@ final class Commit {
   User get committer => GitBaker.members.singleWhere((e) => e.email == _committer);
 
   const Commit._(this.hash, {required this.hashAbbreviated, required this.message, required this.date, required this.signed, required String author, required String committer}) : _author = author, _committer = committer;
+
+  Map<String, dynamic> toJson() => {
+    "hash": hash,
+    "hashAbbreviated": hashAbbreviated,
+    "message": message,
+    "date": date.toUtc().millisecondsSinceEpoch,
+    "signed": signed,
+    "author": _author,
+    "committer": _committer,
+  };
 }""");
 
     out("\nfinal class GitBaker {");
@@ -305,30 +337,30 @@ final class Commit {
     }
     out(
       """
-// possibility of null if no description is set
-// ignore: unnecessary_nullable_for_final_variable_declarations
+  // possibility of null if no description is set
+  // ignore: unnecessary_nullable_for_final_variable_declarations
 static const String? description = ${description == null ? "null" : escape(description)};""",
     );
 
     out(
       """
-/// The most likely remote to be used for fetching and pushing.
-/// 
-/// This is determined by first looking for a remote named "origin" with type
-/// [RemoteType.fetch]. If no such remote exists, the first remote with type
-/// [RemoteType.fetch] is used, regardless of its name. If no such remote
-/// exists, the first remote in [remotes] is used.
+  /// The most likely remote to be used for fetching and pushing.
+  /// 
+  /// This is determined by first looking for a remote named "origin" with type
+  /// [RemoteType.fetch]. If no such remote exists, the first remote with type
+  /// [RemoteType.fetch] is used, regardless of its name. If no such remote
+  /// exists, the first remote in [remotes] is used.
 static Remote get remote => remotes.firstWhere((r) => r.name == "origin" && r.type == RemoteType.fetch, orElse: () => remotes.firstWhere((r) => r.type == RemoteType.fetch, orElse: () => remotes.first));""",
     );
     out("""
-/// All remotes configured for this repository.
-/// 
-/// This includes remotes for fetching and pushing, as well as any other types
-/// of remotes that may be configured.
-/// 
-/// Note that multiple remotes may have the same [name] and [uri], but different
-/// [type]s. For example, a remote may be configured for both fetching and
-/// pushing.
+  /// All remotes configured for this repository.
+  /// 
+  /// This includes remotes for fetching and pushing, as well as any other types
+  /// of remotes that may be configured.
+  /// 
+  /// Note that multiple remotes may have the same [name] and [uri], but
+  /// different [type]s. For example, a remote may be configured for both
+  /// fetching and pushing.
 static const Set<Remote> remotes = {""");
     for (var remote in (await run("git", [
       "remote",
@@ -353,10 +385,10 @@ static const Set<Remote> remotes = {""");
     out("};");
 
     out("""
-/// All members to this repository.
-/// 
-/// Each user is uniquely identified by their email address. Multiple users may
-/// share the same name, but not the same email.
+  /// All members to this repository.
+  /// 
+  /// Each user is uniquely identified by their email address. Multiple users
+  /// may share the same name, but not the same email.
 static const Set<User> members = {""");
     for (var commit
         in <String>{}
@@ -387,7 +419,7 @@ static const Set<User> members = {""");
       ..removeWhere((e) => e == "origin")).join("/");
     out(
       """
-/// The default branch of the repository, usually "main" or "master".
+  /// The default branch of the repository, usually "main" or "master".
 static final Branch defaultBranch = branches.singleWhere((e) => e.name == ${escape(defaultBranch)});""",
     );
 
@@ -399,7 +431,7 @@ static final Branch defaultBranch = branches.singleWhere((e) => e.name == ${esca
       ..removeWhere((e) => e == "origin")).join("/");
     out(
       """
-/// The currently checked out branch of the repository.
+  /// The currently checked out branch of the repository.
 static final Branch currentBranch = branches.singleWhere((e) => e.name == ${escape(currentBranch)});""",
     );
 
@@ -411,11 +443,11 @@ static final Branch currentBranch = branches.singleWhere((e) => e.name == ${esca
     }
 
     out("""
-/// All branches in the repository.
-/// 
-/// If the configuration sets the list `branches`, only branches matching any of
-/// the provided regular expressions are included. If it is empty or not set,
-/// all branches are included.
+  /// All branches in the repository.
+  /// 
+  /// If the configuration sets the list `branches`, only branches matching any
+  /// of the provided regular expressions are included. If it is empty or not
+  /// set, all branches are included.
 static const Set<Branch> branches = {""");
     for (var branch
         in (await run("git", ["branch", "--list"])).stdout
@@ -455,12 +487,12 @@ static const Set<Branch> branches = {""");
     out("};");
 
     out("""
-/// All tags in the repository.
-/// 
-/// [Tag.commit.message] may be used as a description of a tag.
-/// 
-/// Note that this won't get the release notes of Git hosting services like
-/// GitHub or GitLab, but only the tag name.
+  /// All tags in the repository.
+  /// 
+  /// [Tag.commit.message] may be used as a description of a tag.
+  /// 
+  /// Note that this won't get the release notes of Git hosting services like
+  /// GitHub or GitLab, but only the tag name.
 static const Set<Tag> tags = {""");
     for (var tag in (await run("git", [
       "tag",
@@ -474,7 +506,7 @@ static const Set<Tag> tags = {""");
     out("};");
 
     out("""
-/// All commits in the repository, ordered from oldest to newest.
+  /// All commits in the repository, ordered from oldest to newest.
 static final Set<Commit> commits = Set.unmodifiable({""");
     for (var commit in (await run("git", [
       "log",
@@ -491,6 +523,20 @@ static final Set<Commit> commits = Set.unmodifiable({""");
       );
     }
     out("});");
+
+    out("""
+
+Map<String, dynamic> toJson() => {
+  "description": description,
+  "remote": remote.toJson(),
+  "remotes": remotes.map((r) => r.toJson()).toList(),
+  "members": members.map((m) => m.toJson()).toList(),
+  "defaultBranch": defaultBranch.name,
+  "currentBranch": currentBranch.name,
+  "branches": branches.map((b) => b.toJson()).toList(),
+  "tags": tags.map((t) => t.toJson()).toList(),
+  "commits": commits.map((c) => c.toJson()).toList(),
+};""");
 
     out("}");
 

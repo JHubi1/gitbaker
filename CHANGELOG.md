@@ -1,3 +1,9 @@
+## Unreleased
+
+- Improved documentation
+- Added `hashAbbreviated` property to `Commit`
+- Added (non-static) `toJson` methods to all generated classes for easier serialization
+
 ## 0.1.0
 
 - Documentation of generated classes

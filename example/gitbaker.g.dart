@@ -22,6 +22,12 @@ final class Remote {
 
   const Remote._({required this.name, required this.type, required String uri})
     : _uri = uri;
+
+  Map<String, dynamic> toJson() => {
+    "name": name,
+    "type": type.name,
+    "uri": uri.toString(),
+  };
 }
 
 /// A class representing a contributor to the repository.
@@ -33,6 +39,8 @@ final class User {
   final String email;
 
   const User._({required this.name, required this.email});
+
+  Map<String, dynamic> toJson() => {"name": name, "email": email};
 }
 
 /// A class representing a Git branch.
@@ -42,8 +50,8 @@ final class Branch {
   /// The number of commits in this branch, following only the first parent.
   ///
   /// This value can be used to determine the relative age of branches, but
-  /// should not be used to determine the absolute number of commits, as it
-  /// only follows the first parent and does not count merge commits.
+  /// should not be used to determine the absolute number of commits. For that,
+  /// use [commits].length instead.
   final int revision;
 
   final Set<String> _commits;
@@ -60,6 +68,12 @@ final class Branch {
     required this.revision,
     required Set<String> commits,
   }) : _commits = commits;
+
+  Map<String, dynamic> toJson() => {
+    "name": name,
+    "revision": revision,
+    "commits": _commits.toList(),
+  };
 }
 
 /// A class representing a Git tag.
@@ -73,6 +87,8 @@ final class Tag {
   Commit get commit => GitBaker.commits.singleWhere((c) => c.hash == _commit);
 
   const Tag._({required this.name, required String commit}) : _commit = commit;
+
+  Map<String, dynamic> toJson() => {"name": name, "commit": _commit};
 }
 
 /// A class representing a single commit in the Git repository.
@@ -114,6 +130,16 @@ final class Commit {
     required String committer,
   }) : _author = author,
        _committer = committer;
+
+  Map<String, dynamic> toJson() => {
+    "hash": hash,
+    "hashAbbreviated": hashAbbreviated,
+    "message": message,
+    "date": date.toUtc().millisecondsSinceEpoch,
+    "signed": signed,
+    "author": _author,
+    "committer": _committer,
+  };
 }
 
 final class GitBaker {
@@ -141,9 +167,9 @@ final class GitBaker {
   /// This includes remotes for fetching and pushing, as well as any other types
   /// of remotes that may be configured.
   ///
-  /// Note that multiple remotes may have the same [name] and [uri], but different
-  /// [type]s. For example, a remote may be configured for both fetching and
-  /// pushing.
+  /// Note that multiple remotes may have the same [name] and [uri], but
+  /// different [type]s. For example, a remote may be configured for both
+  /// fetching and pushing.
   static const Set<Remote> remotes = {
     Remote._(
       name: "origin",
@@ -159,8 +185,8 @@ final class GitBaker {
 
   /// All members to this repository.
   ///
-  /// Each user is uniquely identified by their email address. Multiple users may
-  /// share the same name, but not the same email.
+  /// Each user is uniquely identified by their email address. Multiple users
+  /// may share the same name, but not the same email.
   static const Set<User> members = {
     User._(name: "JHubi1", email: "me@jhubi1.com"),
     User._(name: "Hudson Afonso", email: "hudson.afonso@gmail.com"),
@@ -179,13 +205,13 @@ final class GitBaker {
 
   /// All branches in the repository.
   ///
-  /// If the configuration sets the list `branches`, only branches matching any of
-  /// the provided regular expressions are included. If it is empty or not set,
-  /// all branches are included.
+  /// If the configuration sets the list `branches`, only branches matching any
+  /// of the provided regular expressions are included. If it is empty or not
+  /// set, all branches are included.
   static const Set<Branch> branches = {
     Branch._(
       name: "main",
-      revision: 21,
+      revision: 22,
       commits: {
         "c1ed74ebd5953ca7cd2cae336465e8ba6b7bafe8",
         "c9415e474684b460eb55f934c45348e97bf03b63",
@@ -209,6 +235,7 @@ final class GitBaker {
         "b0c29dcfc83fa9a02b92214790ca8b5257bc1f97",
         "86db04bf378d50fe66f929767a98f44fa3f9e5f1",
         "777235d62342f93d8e89f989e0884ab1cb65822d",
+        "937a8c6ef5da700335700d0b66c0173f998ddf9f",
       },
     ),
   };
@@ -496,5 +523,29 @@ final class GitBaker {
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
     ),
+    Commit._(
+      "937a8c6ef5da700335700d0b66c0173f998ddf9f",
+      hashAbbreviated: "937a8c6",
+      message: "Added abbreviated commit hashes",
+      date: DateTime.fromMillisecondsSinceEpoch(
+        1757327230000,
+        isUtc: true,
+      ), // 2025-09-08T10:27:10.000Z
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
   });
+
+  Map<String, dynamic> toJson() => {
+    "description": description,
+    "remote": remote.toJson(),
+    "remotes": remotes.map((r) => r.toJson()).toList(),
+    "members": members.map((m) => m.toJson()).toList(),
+    "defaultBranch": defaultBranch.name,
+    "currentBranch": currentBranch.name,
+    "branches": branches.map((b) => b.toJson()).toList(),
+    "tags": tags.map((t) => t.toJson()).toList(),
+    "commits": commits.map((c) => c.toJson()).toList(),
+  };
 }
