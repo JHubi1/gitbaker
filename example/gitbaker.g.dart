@@ -51,6 +51,9 @@ final class Branch {
   /// use [commits].length instead.
   final int revision;
 
+  final int ahead;
+  final int behind;
+
   final Set<String> _commits;
   Set<Commit> get commits =>
       _commits
@@ -63,6 +66,8 @@ final class Branch {
   const Branch._({
     required this.name,
     required this.revision,
+    required this.ahead,
+    required this.behind,
     required Set<String> commits,
   }) : _commits = commits;
 
@@ -210,7 +215,9 @@ final class GitBaker {
   static const Set<Branch> branches = {
     Branch._(
       name: "main",
-      revision: 23,
+      revision: 25,
+      ahead: 0,
+      behind: 0,
       commits: {
         "c1ed74ebd5953ca7cd2cae336465e8ba6b7bafe8",
         "c9415e474684b460eb55f934c45348e97bf03b63",
@@ -236,6 +243,8 @@ final class GitBaker {
         "777235d62342f93d8e89f989e0884ab1cb65822d",
         "937a8c6ef5da700335700d0b66c0173f998ddf9f",
         "b8402cd897c5ddf4f34c1c93ce9297cd62deebbb",
+        "1e05775388eedd1b3815b19e61c489d2347ff6b7",
+        "aec90e9428c3b0abf1da9d760892870464161e41",
       },
     ),
   };
@@ -255,6 +264,7 @@ final class GitBaker {
     Tag._(name: "0.0.7", commit: "34f2ba206d6980e36ca4200cc1e2bb81f0a09cad"),
     Tag._(name: "0.0.8", commit: "71b769101fe00ee91135feaa29bcaee09854197e"),
     Tag._(name: "0.1.0", commit: "86db04bf378d50fe66f929767a98f44fa3f9e5f1"),
+    Tag._(name: "0.1.1", commit: "aec90e9428c3b0abf1da9d760892870464161e41"),
   };
 
   /// All commits in the repository, ordered from oldest to newest.
@@ -471,6 +481,33 @@ final class GitBaker {
       hashAbbreviated: "b8402cd",
       message: "`toJson` methods",
       date: DateTime.parse("2025-09-08T11:20:59.000Z"),
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
+    Commit._(
+      "1e05775388eedd1b3815b19e61c489d2347ff6b7",
+      hashAbbreviated: "1e05775",
+      message: "Updated version",
+      date: DateTime.parse("2025-09-08T11:54:56.000Z"),
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
+    Commit._(
+      "aec90e9428c3b0abf1da9d760892870464161e41",
+      hashAbbreviated: "aec90e9",
+      message: "Update CHANGELOG.md",
+      date: DateTime.parse("2025-09-08T11:55:20.000Z"),
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
+    Commit._(
+      "490dddcf604b02565162d516a81150c8e1939bbd",
+      hashAbbreviated: "490dddc",
+      message: "x",
+      date: DateTime.parse("2025-09-08T12:10:10.000Z"),
       signed: true,
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",

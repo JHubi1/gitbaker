@@ -249,13 +249,16 @@ final class Branch {
   /// use [commits].length instead.
   final int revision;
 
+  final int ahead;
+  final int behind;
+
   final Set<String> _commits;
   Set<Commit> get commits => _commits.map((h) => GitBaker.commits.singleWhere((c) => c.hash == h)).toSet();
 
   bool get isCurrent => this == GitBaker.currentBranch;
   bool get isDefault => this == GitBaker.defaultBranch;
 
-  const Branch._({required this.name, required this.revision, required Set<String> commits}) : _commits = commits;
+  const Branch._({required this.name, required this.revision, required this.ahead, required this.behind, required Set<String> commits}) : _commits = commits;
 
   Map<String, Object?> toJson() => {
     "name": name,
@@ -473,7 +476,49 @@ static const Set<Branch> branches = {""");
           ) ??
           0;
 
-      out("Branch._(name: ${escape(branch)}, revision: $revision, commits: {");
+      final aheadBehind =
+          RegExp(r"\[(.*?)\]")
+              .firstMatch(
+                (await run("git", [
+                  "branch",
+                  "--list",
+                  "-vv",
+                  branch,
+                ])).stdout.toString(),
+              )!
+              .group(1)!
+              .split(":")
+              .elementAtOrNull(1)
+              ?.trim()
+              .split(",")
+              .map((e) => e.trim())
+              .toList();
+      final ahead =
+          int.tryParse(
+            aheadBehind
+                    ?.firstWhere(
+                      (e) => e.startsWith("ahead"),
+                      orElse: () => "ahead 0",
+                    )
+                    .substring(6) ??
+                "",
+          ) ??
+          0;
+      final behind =
+          int.tryParse(
+            aheadBehind
+                    ?.firstWhere(
+                      (e) => e.startsWith("behind"),
+                      orElse: () => "behind 0",
+                    )
+                    .substring(7) ??
+                "",
+          ) ??
+          0;
+
+      out(
+        "Branch._(name: ${escape(branch)}, revision: $revision, ahead: $ahead, behind: $behind, commits: {",
+      );
       for (var commit
           in (await run("git", ["rev-list", branch])).stdout
               .toString()
@@ -483,7 +528,7 @@ static const Set<Branch> branches = {""");
               .toList()) {
         out("${escape(commit)},");
       }
-      out("}),");
+      out("})");
     }
     out("};");
 
