@@ -8,10 +8,8 @@
 /// See <https://pub.dev/packages/gitbaker> for more information. To update or
 /// regenerate this file, run `dart run gitbaker` somewhere in this repository.
 ///
-/// Last generated: 2025-09-08T18:00:58
+/// Last generated: 2025-09-08T18:13:14
 library;
-
-import 'dart:convert';
 
 enum RemoteType { fetch, push, unknown }
 
@@ -410,43 +408,7 @@ final class GitBaker {
   /// List of uncommitted changes in the working tree of the repository.
   static final List<WorkspaceEntry> workspace = List.unmodifiable([
     WorkspaceEntryChange._(
-      "CHANGELOG.md",
-      status: WorkspaceEntryStatus._fromLetters(".", "M"),
-      submoduleState: WorkspaceEntrySubmoduleState._(
-        commitChanged: false,
-        hasTrackedChanges: false,
-        hasUntrackedChanges: false,
-      ),
-    ),
-    WorkspaceEntryChange._(
-      "bin/generated/pubspec.g.dart",
-      status: WorkspaceEntryStatus._fromLetters(".", "M"),
-      submoduleState: WorkspaceEntrySubmoduleState._(
-        commitChanged: false,
-        hasTrackedChanges: false,
-        hasUntrackedChanges: false,
-      ),
-    ),
-    WorkspaceEntryChange._(
-      "bin/gitbaker.dart",
-      status: WorkspaceEntryStatus._fromLetters("M", "M"),
-      submoduleState: WorkspaceEntrySubmoduleState._(
-        commitChanged: false,
-        hasTrackedChanges: false,
-        hasUntrackedChanges: false,
-      ),
-    ),
-    WorkspaceEntryChange._(
       "example/gitbaker.g.dart",
-      status: WorkspaceEntryStatus._fromLetters(".", "M"),
-      submoduleState: WorkspaceEntrySubmoduleState._(
-        commitChanged: false,
-        hasTrackedChanges: false,
-        hasUntrackedChanges: false,
-      ),
-    ),
-    WorkspaceEntryChange._(
-      "pubspec.yaml",
       status: WorkspaceEntryStatus._fromLetters(".", "M"),
       submoduleState: WorkspaceEntrySubmoduleState._(
         commitChanged: false,
@@ -464,7 +426,7 @@ final class GitBaker {
   static const List<Branch> branches = [
     Branch._(
       name: "main",
-      revision: 26,
+      revision: 28,
       ahead: 0,
       behind: 0,
       commits: [
@@ -495,6 +457,8 @@ final class GitBaker {
         "1e05775388eedd1b3815b19e61c489d2347ff6b7",
         "aec90e9428c3b0abf1da9d760892870464161e41",
         "2afb8801a27c0399f7507f67a11902be14f606d4",
+        "fd9ed3ce713f169e5528b9ea71233c840b5dfd47",
+        "62be987ad6f6cc8f11fe71bf86ab907ea0c10f3c",
       ],
     ),
   ];
@@ -515,6 +479,7 @@ final class GitBaker {
     Tag._(name: "0.0.8", commit: "71b769101fe00ee91135feaa29bcaee09854197e"),
     Tag._(name: "0.1.0", commit: "86db04bf378d50fe66f929767a98f44fa3f9e5f1"),
     Tag._(name: "0.1.1", commit: "aec90e9428c3b0abf1da9d760892870464161e41"),
+    Tag._(name: "0.1.2", commit: "fd9ed3ce713f169e5528b9ea71233c840b5dfd47"),
   ];
 
   /// All commits in the repository, ordered from oldest to newest.
@@ -771,11 +736,29 @@ final class GitBaker {
       author: "me@jhubi1.com",
       committer: "me@jhubi1.com",
     ),
+    Commit._(
+      "fd9ed3ce713f169e5528b9ea71233c840b5dfd47",
+      hashAbbreviated: "fd9ed3c",
+      message: "Workspace, Sets to Lists, `contributions`",
+      date: DateTime.parse("2025-09-08T16:02:00.000Z"),
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
+    Commit._(
+      "62be987ad6f6cc8f11fe71bf86ab907ea0c10f3c",
+      hashAbbreviated: "62be987",
+      message: "`remote` as index",
+      date: DateTime.parse("2025-09-08T16:10:12.000Z"),
+      signed: true,
+      author: "me@jhubi1.com",
+      committer: "me@jhubi1.com",
+    ),
   ]);
 
   static Map<String, Object?> toJson() => {
     "description": description,
-    "remote": remotes.indexOf(remote),
+    "remote": remote.toJson(),
     "remotes": remotes.map((r) => r.toJson()).toList(),
     "members": members.map((m) => m.toJson()).toList(),
     "defaultBranch": defaultBranch.name,
@@ -785,8 +768,4 @@ final class GitBaker {
     "tags": tags.map((t) => t.toJson()).toList(),
     "commits": commits.map((c) => c.toJson()).toList(),
   };
-}
-
-void main(_) {
-  print(JsonEncoder.withIndent(" " * 2).convert(GitBaker.toJson()));
 }
