@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,7 +9,11 @@ import 'package:yaml/yaml.dart';
 import 'generated/pubspec.g.dart' as info;
 
 CliSpin? spinner;
-Map<String, dynamic> config = {"output": "lib/generated", "branches": []};
+Map<String, dynamic> config = {
+  "output": "lib/generated",
+  "branches": [],
+  "anonymize": false,
+};
 DateTime? start;
 
 class AnsiEscape {
@@ -201,11 +206,11 @@ void main(_) async {
 /// 
 /// See <https://pub.dev/packages/gitbaker> for more information. To update or
 /// regenerate this file, run `dart run gitbaker` somewhere in this repository.
+/// 
+/// Last generated: ${DateTime.now().toIso8601String().split(".").first}
 library;""");
 
-    out("""
-/// Represents the type of remote operation for a Git repository.
-enum RemoteType { fetch, push, unknown }""");
+    out("enum RemoteType { fetch, push, unknown }");
     out("""
 /// A class representing a remote repository or connection.
 final class Remote {
@@ -232,6 +237,8 @@ final class User {
 
   const User._({required this.name, required this.email});
 
+  List<Commit> get contributions => List.unmodifiable(GitBaker.commits.where((c) => c.author == this).toList());
+
   Map<String, Object?> toJson() => {
     "name": name,
     "email": email,
@@ -252,13 +259,13 @@ final class Branch {
   final int ahead;
   final int behind;
 
-  final Set<String> _commits;
-  Set<Commit> get commits => _commits.map((h) => GitBaker.commits.singleWhere((c) => c.hash == h)).toSet();
+  final List<String> _commits;
+  List<Commit> get commits => List.unmodifiable(_commits.map((h) => GitBaker.commits.singleWhere((c) => c.hash == h)).toList());
 
   bool get isCurrent => this == GitBaker.currentBranch;
   bool get isDefault => this == GitBaker.defaultBranch;
 
-  const Branch._({required this.name, required this.revision, required this.ahead, required this.behind, required Set<String> commits}) : _commits = commits;
+  const Branch._({required this.name, required this.revision, required this.ahead, required this.behind, required List<String> commits}) : _commits = commits;
 
   Map<String, Object?> toJson() => {
     "name": name,
@@ -304,7 +311,7 @@ final class Commit {
   /// 
   /// This may be empty if the commit is not present in any branch (e.g. if it
   /// is only present in tags or is an orphaned commit).
-  Set<Branch> get presentIn => GitBaker.branches.where((b) => b.commits.contains(this)).toSet();
+  List<Branch> get presentIn => List.unmodifiable(GitBaker.branches.where((b) => b.commits.contains(this)).toList());
 
   final String _author;
   User get author => GitBaker.members.singleWhere((e) => e.email == _author);
@@ -313,6 +320,11 @@ final class Commit {
   User get committer => GitBaker.members.singleWhere((e) => e.email == _committer);
 
   const Commit._(this.hash, {required this.hashAbbreviated, required this.message, required this.date, required this.signed, required String author, required String committer}) : _author = author, _committer = committer;
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || (other is Commit && other.hash == hash);
+  @override
+  int get hashCode => hash.hashCode;
 
   Map<String, Object?> toJson() => {
     "hash": hash,
@@ -323,6 +335,157 @@ final class Commit {
     "author": _author,
     "committer": _committer,
   };
+}""");
+
+    out("""
+/// Represents the status of a working tree entry.
+enum WorkspaceEntryStatusPart {
+  unmodified,
+  modified("M"),
+  fileTypeChanged("T"),
+  added("A"),
+  deleted("D"),
+  renamed("R"),
+  copied("C"),
+  updatedButUnmerged("U");
+
+  final String letter;
+  const WorkspaceEntryStatusPart([this.letter = "."]);
+
+  factory WorkspaceEntryStatusPart._fromLetter(String letter) {
+    return WorkspaceEntryStatusPart.values.firstWhere(
+      (e) => e.letter == letter,
+      orElse: () => WorkspaceEntryStatusPart.unmodified,
+    );
+  }
+}""");
+    out("""
+/// Represents the combined status of a working tree entry.
+/// 
+/// A status is always a combination of two [WorkspaceEntryStatusPart]s, one
+/// for the index status (X) and one for the working tree status (Y).
+/// 
+/// https://git-scm.com/docs/git-status#_output
+final class WorkspaceEntryStatus {
+  /// The status of the entry in the index.
+  /// 
+  /// The index is the staging area, where changes are prepared for the next
+  /// commit. Meaning that if this has a value, there are changes to this file
+  /// that are not yet committed, but already staged.
+  final WorkspaceEntryStatusPart x;
+
+  /// The status of the entry in the working tree.
+  /// 
+  /// The working tree is the current state of the files in the repository.
+  /// Meaning that if this has a value, there are changes to this file that are
+  /// not yet committed, and not yet staged.
+  final WorkspaceEntryStatusPart y;
+
+  WorkspaceEntryStatus._fromLetters(String x, String y) : x = WorkspaceEntryStatusPart._fromLetter(x), y = WorkspaceEntryStatusPart._fromLetter(y);
+
+  Map<String, Object?> toJson() => {
+    "x": x.name,
+    "y": y.name,
+  };
+}""");
+    out("""
+/// Represents the state of a submodule in the working tree.
+final class WorkspaceEntrySubmoduleState {
+  final bool commitChanged;
+  final bool hasTrackedChanges;
+  final bool hasUntrackedChanges;
+
+  const WorkspaceEntrySubmoduleState._({required this.commitChanged, required this.hasTrackedChanges, required this.hasUntrackedChanges});
+
+  Map<String, Object?> toJson() => {
+    "commitChanged": commitChanged,
+    "hasTrackedChanges": hasTrackedChanges,
+    "hasUntrackedChanges": hasUntrackedChanges,
+  };
+}""");
+    out("""
+/// A class representing a single entry in the working tree of the repository.
+/// 
+/// You may use the subclasses to determine the type of entry:
+/// - [WorkspaceEntryChange] for changed entries
+/// - [WorkspaceEntryRenameCopy] for renamed or copied entries
+/// - [WorkspaceEntryUntracked] for untracked entries
+/// - [WorkspaceEntryIgnored] for ignored entries
+/// 
+/// https://git-scm.com/docs/git-status#_porcelain_format_version_2
+abstract final class WorkspaceEntry {
+  /// Path relative to the repository root of this entry.
+  final String path;
+
+  final bool _isUntracked;
+  final bool _isIgnored;
+  const WorkspaceEntry._(this.path) : _isUntracked = false, _isIgnored = false;
+  const WorkspaceEntry._untracked(this.path) : _isUntracked = true, _isIgnored = false;
+  const WorkspaceEntry._ignored(this.path) : _isUntracked = false, _isIgnored = true;
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || (other is WorkspaceEntry && other.path == path && other._isUntracked == _isUntracked && other._isIgnored == _isIgnored);
+  @override
+  int get hashCode => Object.hash(path, _isUntracked, _isIgnored);
+
+  Map<String, Object?> toJson() => {
+    "type": _isUntracked ? "untracked" : (_isIgnored ? "ignored" : throw UnimplementedError()),
+    "path": path,
+  };
+}
+
+/// A class representing a changed entry in the working tree.
+final class WorkspaceEntryChange extends WorkspaceEntry {
+  final WorkspaceEntryStatus status;
+  final WorkspaceEntrySubmoduleState submoduleState;
+
+  const WorkspaceEntryChange._(super.path, {required this.status, required this.submoduleState}) : super._();
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || (other is WorkspaceEntryChange && other.path == path && other.status == status && other.submoduleState == submoduleState);
+  @override
+  int get hashCode => Object.hash(path, status, submoduleState);
+
+  @override
+  Map<String, Object?> toJson() => {
+    "type": "change",
+    "path": path,
+    "status": status.toJson(),
+    "submoduleState": submoduleState.toJson(),
+  };
+}
+
+/// A class representing a renamed or copied entry in the working tree.
+final class WorkspaceEntryRenameCopy extends WorkspaceEntryChange {
+  final double score;
+  final String oldPath;
+
+  const WorkspaceEntryRenameCopy._(super.path, {required super.status, required super.submoduleState, required this.score, required this.oldPath}) : super._();
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || (other is WorkspaceEntryRenameCopy && other.path == path && other.score == score && other.oldPath == oldPath);
+  @override
+  int get hashCode => Object.hash(path, score, oldPath);
+
+  @override
+  Map<String, Object?> toJson() => {
+    "type": "rename/copy",
+    "path": path,
+    "status": status.toJson(),
+    "submoduleState": submoduleState.toJson(),
+    "score": score,
+    "oldPath": oldPath,
+  };
+}
+
+/// A class representing an untracked entry in the working tree.
+final class WorkspaceEntryUntracked extends WorkspaceEntry {
+  const WorkspaceEntryUntracked._(super.path) : super._untracked();
+}
+
+/// A class representing an ignored entry in the working tree.
+final class WorkspaceEntryIgnored extends WorkspaceEntry {
+  const WorkspaceEntryIgnored._(super.path) : super._ignored();
 }""");
 
     out("""
@@ -365,7 +528,7 @@ static Remote get remote => remotes.firstWhere((r) => r.name == "origin" && r.ty
   /// Note that multiple remotes may have the same [name] and [uri], but
   /// different [type]s. For example, a remote may be configured for both
   /// fetching and pushing.
-static final Set<Remote> remotes = Set.unmodifiable({""");
+static final List<Remote> remotes = List.unmodifiable([""");
     for (var remote in (await run("git", [
       "remote",
       "-v",
@@ -386,34 +549,40 @@ static final Set<Remote> remotes = Set.unmodifiable({""");
         "Remote._(name: ${escape(parts[0])}, type: ${parts[2]}, uri: Uri.parse(${escape(parts[1])})),",
       );
     }
-    out("});");
+    out("]);");
 
     out("""
   /// All members to this repository.
   /// 
   /// Each user is uniquely identified by their email address. Multiple users
   /// may share the same name, but not the same email.
-static const Set<User> members = {""");
-    for (var commit
-        in <String>{}
-          ..addAll(
-            (await run("git", [
-              "log",
-              "--pretty=format:%an$s%ae",
-              "--all",
-            ])).stdout.toString().split("\n").where((e) => e.isNotEmpty),
-          )
-          ..addAll(
-            (await run("git", [
-              "log",
-              "--pretty=format:%cn$s%ce",
-              "--all",
-            ])).stdout.toString().split("\n").where((e) => e.isNotEmpty),
-          )) {
-      final parts = commit.split(s).map((e) => e.trim()).toList();
-      out("User._(name: ${escape(parts[0])}, email: ${escape(parts[1])}),");
+static const List<User> members = [""");
+    if (config["anonymize"] == true) {
+      out(
+        "User._(name: ${escape("Anonymous")}, email: ${escape("anonymous@example.com")}),",
+      );
+    } else {
+      for (var commit
+          in <String>{}
+            ..addAll(
+              (await run("git", [
+                "log",
+                "--pretty=format:%an$s%ae",
+                "--all",
+              ])).stdout.toString().split("\n").where((e) => e.isNotEmpty),
+            )
+            ..addAll(
+              (await run("git", [
+                "log",
+                "--pretty=format:%cn$s%ce",
+                "--all",
+              ])).stdout.toString().split("\n").where((e) => e.isNotEmpty),
+            )) {
+        final parts = commit.split(s).map((e) => e.trim()).toList();
+        out("User._(name: ${escape(parts[0])}, email: ${escape(parts[1])}),");
+      }
     }
-    out("};");
+    out("];");
 
     final defaultBranch = ((await run("git", [
         "rev-parse",
@@ -439,6 +608,74 @@ static final Branch defaultBranch = branches.singleWhere((e) => e.name == ${esca
 static final Branch currentBranch = branches.singleWhere((e) => e.name == ${escape(currentBranch)});""",
     );
 
+    out("""
+/// List of uncommitted changes in the working tree of the repository.
+static final List<WorkspaceEntry> workspace = List.unmodifiable([""");
+    for (var entry in (await run("git", [
+      "status",
+      "--porcelain=2",
+    ])).stdout.toString().split("\n").where((e) => e.trim().isNotEmpty)) {
+      switch (entry[0]) {
+        case "1":
+          final match = RegExp(
+            r"^1 (?<XY>[ \.MTADRCU]{2}) (?<sub>(?:N\.\.\.|S[\.C][\.M][\.U])) (?:[^ ]* ){5}(?<path>.*)$",
+          ).firstMatch(entry);
+          if (match == null) continue;
+          final x = match.namedGroup("XY")![0];
+          final y = match.namedGroup("XY")![1];
+          final sub =
+              match.namedGroup("sub")!.startsWith("S")
+                  ? match.namedGroup("sub")!
+                  : null;
+          final path = match.namedGroup("path")!;
+          out(
+            "WorkspaceEntryChange._(${escape(path)}, "
+            "status: WorkspaceEntryStatus._fromLetters(${escape(x)}, ${escape(y)}), "
+            "submoduleState: WorkspaceEntrySubmoduleState._(commitChanged: ${sub != null && sub[1] == "C"}, hasTrackedChanges: ${sub != null && sub[2] == "M"}, hasUntrackedChanges: ${sub != null && sub[3] == "U"})),",
+          );
+        case "2":
+          final match = RegExp(
+            r"^2 (?<XY>[ \.MTADRCU]{2}) (?<sub>(?:N\.\.\.|S[\.C][\.M][\.U])) (?:[^ ]* ){5}(?<score>[RC][0-9]+?) (?<path>.*?)" +
+                RegExp.escape("\u{09}") +
+                r"(?<oldPath>.*)$",
+          ).firstMatch(entry);
+          if (match == null) continue;
+          final x = match.namedGroup("XY")![0];
+          final y = match.namedGroup("XY")![1];
+          final sub =
+              match.namedGroup("sub")!.startsWith("S")
+                  ? match.namedGroup("sub")!
+                  : null;
+          final score =
+              math.min(
+                math.max(
+                  int.tryParse(match.namedGroup("score")!.substring(1)) ?? 0,
+                  0,
+                ),
+                100,
+              ) /
+              100;
+          final path = match.namedGroup("path")!;
+          final oldPath = match.namedGroup("oldPath")!;
+          out(
+            "WorkspaceEntryRenameCopy._(${escape(path)}, "
+            "status: WorkspaceEntryStatus._fromLetters(${escape(x)}, ${escape(y)}), "
+            "submoduleState: WorkspaceEntrySubmoduleState._(commitChanged: ${sub != null && sub[1] == "C"}, hasTrackedChanges: ${sub != null && sub[2] == "M"}, hasUntrackedChanges: ${sub != null && sub[3] == "U"}), "
+            "score: $score, "
+            "oldPath: ${escape(oldPath)}),",
+          );
+        case "u":
+          // unimplemented
+          break;
+        case "?" || "!":
+          final isIgnored = entry[0] == "!";
+          out(
+            "${isIgnored ? "WorkspaceEntryIgnored" : "WorkspaceEntryUntracked"}._(${escape(entry.substring(2).trim())}),",
+          );
+      }
+    }
+    out("]);");
+
     List<RegExp> regex = [];
     for (var r in config["branches"]) {
       try {
@@ -452,12 +689,12 @@ static final Branch currentBranch = branches.singleWhere((e) => e.name == ${esca
   /// If the configuration sets the list `branches`, only branches matching any
   /// of the provided regular expressions are included. If it is empty or not
   /// set, all branches are included.
-static const Set<Branch> branches = {""");
+static const List<Branch> branches = [""");
     for (var branch
         in (await run("git", ["branch", "--list"])).stdout
             .toString()
             .split("\n")
-            .where((e) => e.isNotEmpty)
+            .where((e) => e.trim().isNotEmpty)
             .map((e) => e.trim().substring(2))
             .toList()
           ..sort()) {
@@ -517,7 +754,7 @@ static const Set<Branch> branches = {""");
           0;
 
       out(
-        "Branch._(name: ${escape(branch)}, revision: $revision, ahead: $ahead, behind: $behind, commits: {",
+        "Branch._(name: ${escape(branch)}, revision: $revision, ahead: $ahead, behind: $behind, commits: [",
       );
       for (var commit
           in (await run("git", ["rev-list", branch])).stdout
@@ -528,9 +765,9 @@ static const Set<Branch> branches = {""");
               .toList()) {
         out("${escape(commit)},");
       }
-      out("})");
+      out("])");
     }
-    out("};");
+    out("];");
 
     out("""
   /// All tags in the repository.
@@ -539,7 +776,7 @@ static const Set<Branch> branches = {""");
   /// 
   /// Note that this won't get the release notes of Git hosting services like
   /// GitHub or GitLab, but only the tag name.
-static const Set<Tag> tags = {""");
+static const List<Tag> tags = [""");
     for (var tag in (await run("git", [
       "tag",
       "-ln9",
@@ -549,11 +786,11 @@ static const Set<Tag> tags = {""");
         "Tag._(name: ${escape(parts[0])}, commit: ${escape((await run("git", ["rev-parse", parts[0]])).stdout.toString().trim())}),",
       );
     }
-    out("};");
+    out("];");
 
     out("""
   /// All commits in the repository, ordered from oldest to newest.
-static final Set<Commit> commits = Set.unmodifiable({""");
+static final List<Commit> commits = List.unmodifiable([""");
     for (var commit in (await run("git", [
       "log",
       "--reflog",
@@ -564,11 +801,15 @@ static final Set<Commit> commits = Set.unmodifiable({""");
         (int.tryParse(parts[6]) ?? 0) * 1000,
         isUtc: true,
       );
+      final authorEmail =
+          config["anonymize"] == true ? "anonymous@example.com" : parts[3];
+      final committerEmail =
+          config["anonymize"] == true ? "anonymous@example.com" : parts[5];
       out(
-        "Commit._(${escape(parts[0])}, hashAbbreviated: ${escape(parts[1])}, message: ${escape(parts[2])}, date: DateTime.parse(${escape(date.toIso8601String())}), signed: ${["G", "U", "E"].contains(parts[7])}, author: ${escape(parts[3])}, committer: ${escape(parts[5])}),",
+        "Commit._(${escape(parts[0])}, hashAbbreviated: ${escape(parts[1])}, message: ${escape(parts[2])}, date: DateTime.parse(${escape(date.toIso8601String())}), signed: ${["G", "U", "E"].contains(parts[7])}, author: ${escape(authorEmail)}, committer: ${escape(committerEmail)}),",
       );
     }
-    out("});");
+    out("]);");
 
     out("""
 
@@ -579,6 +820,7 @@ static Map<String, Object?> toJson() => {
   "members": members.map((m) => m.toJson()).toList(),
   "defaultBranch": defaultBranch.name,
   "currentBranch": currentBranch.name,
+  "workspace": workspace.map((e) => e.toJson()).toList(),
   "branches": branches.map((b) => b.toJson()).toList(),
   "tags": tags.map((t) => t.toJson()).toList(),
   "commits": commits.map((c) => c.toJson()).toList(),

@@ -1,3 +1,10 @@
+## 0.1.2
+
+- The `Commit` class can now be compared using `==`
+- All sets have been changed to lists to preserve order
+- New `GitBaker` property `workspace` with a list of all uncommitted changes
+- `User` now has a `contributions` property
+
 ## 0.1.1
 
 - Improved documentation
