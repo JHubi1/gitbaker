@@ -11,6 +11,8 @@
 /// Last generated: 2025-09-08T18:00:58
 library;
 
+import 'dart:convert';
+
 enum RemoteType { fetch, push, unknown }
 
 /// A class representing a remote repository or connection.
@@ -773,7 +775,7 @@ final class GitBaker {
 
   static Map<String, Object?> toJson() => {
     "description": description,
-    "remote": remote.toJson(),
+    "remote": remotes.indexOf(remote),
     "remotes": remotes.map((r) => r.toJson()).toList(),
     "members": members.map((m) => m.toJson()).toList(),
     "defaultBranch": defaultBranch.name,
@@ -783,4 +785,8 @@ final class GitBaker {
     "tags": tags.map((t) => t.toJson()).toList(),
     "commits": commits.map((c) => c.toJson()).toList(),
   };
+}
+
+void main(_) {
+  print(JsonEncoder.withIndent(" " * 2).convert(GitBaker.toJson()));
 }
