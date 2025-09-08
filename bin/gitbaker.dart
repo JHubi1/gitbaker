@@ -229,34 +229,6 @@ final class User {
   const User._({required this.name, required this.email});
 }""");
     out("""
-/// A class representing a single commit in the Git repository.
-final class Commit {
-  final String hash;
-  final String message;
-  final DateTime date;
-
-  /// Whether the commit has been signed.
-  /// 
-  /// ***Careful:*** Not whether the signature is valid, only whether it
-  /// exists. Git is unable to verify signatures without access to the public
-  /// key of the signer, which is not stored in the repository.
-  final bool signed;
-
-  /// The branches that contain this commit.
-  /// 
-  /// This may be empty if the commit is not present in any branch (e.g. if it
-  /// is only present in tags or is an orphaned commit).
-  Set<Branch> get presentIn => GitBaker.branches.where((b) => b.commits.contains(this)).toSet();
-
-  final String _author;
-  User get author => GitBaker.members.singleWhere((e) => e.email == _author);
-
-  final String _committer;
-  User get committer => GitBaker.members.singleWhere((e) => e.email == _committer);
-
-  const Commit._(this.hash, {required this.message, required this.date, required this.signed, required String author, required String committer}) : _author = author, _committer = committer;
-}""");
-    out("""
 /// A class representing a Git branch.
 final class Branch {
   final String name;
@@ -288,6 +260,36 @@ final class Tag {
   Commit get commit => GitBaker.commits.singleWhere((c) => c.hash == _commit);
 
   const Tag._({required this.name, required String commit}) : _commit = commit;
+}""");
+    out("""
+/// A class representing a single commit in the Git repository.
+final class Commit {
+  final String hash;
+  final String hashAbbreviated;
+
+  final String message;
+  final DateTime date;
+
+  /// Whether the commit has been signed.
+  /// 
+  /// ***Careful:*** Not whether the signature is valid, only whether it
+  /// exists. Git is unable to verify signatures without access to the public
+  /// key of the signer, which is not stored in the repository.
+  final bool signed;
+
+  /// The branches that contain this commit.
+  /// 
+  /// This may be empty if the commit is not present in any branch (e.g. if it
+  /// is only present in tags or is an orphaned commit).
+  Set<Branch> get presentIn => GitBaker.branches.where((b) => b.commits.contains(this)).toSet();
+
+  final String _author;
+  User get author => GitBaker.members.singleWhere((e) => e.email == _author);
+
+  final String _committer;
+  User get committer => GitBaker.members.singleWhere((e) => e.email == _committer);
+
+  const Commit._(this.hash, {required this.hashAbbreviated, required this.message, required this.date, required this.signed, required String author, required String committer}) : _author = author, _committer = committer;
 }""");
 
     out("\nfinal class GitBaker {");
@@ -477,15 +479,15 @@ static final Set<Commit> commits = Set.unmodifiable({""");
     for (var commit in (await run("git", [
       "log",
       "--reflog",
-      "--pretty=format:%H$s%s$s%ae$s%at$s%ce$s%ct$s%G?",
+      "--pretty=format:%H$s%h$s%s$s%ae$s%at$s%ce$s%ct$s%G?",
     ])).stdout.toString().split("\n").reversed.where((e) => e.isNotEmpty)) {
       final parts = commit.split(s).map((e) => e.trim()).toList();
       final date = DateTime.fromMillisecondsSinceEpoch(
-        (int.tryParse(parts[5]) ?? 0) * 1000,
+        (int.tryParse(parts[6]) ?? 0) * 1000,
         isUtc: true,
       );
       out(
-        "Commit._(${escape(parts[0])}, message: ${escape(parts[1])}, date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}, isUtc: true), // ${date.toIso8601String()}\nsigned: ${["G", "U", "E"].contains(parts[6])}, author: ${escape(parts[2])}, committer: ${escape(parts[4])}),",
+        "Commit._(${escape(parts[0])}, hashAbbreviated: ${escape(parts[1])}, message: ${escape(parts[2])}, date: DateTime.fromMillisecondsSinceEpoch(${date.millisecondsSinceEpoch}, isUtc: true), // ${date.toIso8601String()}\nsigned: ${["G", "U", "E"].contains(parts[7])}, author: ${escape(parts[3])}, committer: ${escape(parts[5])}),",
       );
     }
     out("});");
