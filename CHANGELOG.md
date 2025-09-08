@@ -1,4 +1,4 @@
-## Unreleased
+## 0.1.1
 
 - Improved documentation
 - Added `hashAbbreviated` property to `Commit`
